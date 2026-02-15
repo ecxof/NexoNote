@@ -14,6 +14,13 @@
   --text-secondary: #9ca3af;
   --text-tertiary: #6b7280;
   --border-color: #1f2937;
+  /* Highlight palette (toolbar swatches + low-opacity in-editor) */
+  --color-green: #6FB38A;
+  --color-blue: #7FA9C4;
+  --color-red: #A15A5A;
+  --color-purple: #7B5FA0;
+  --color-yellow: #A89A3A;
+  --color-muted: #2E2E2E;
 
   color-scheme: dark;
   color: var(--text-primary);

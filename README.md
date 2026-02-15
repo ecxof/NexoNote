@@ -36,11 +36,15 @@ cd nexonote
 # Install dependencies
 npm install
 
-# Start development server
+# Start development server (browser; notes stored in localStorage)
 npm run dev
+
+# Or run as Electron desktop app (notes stored in app data JSON files)
+npm run electron:dev
 ```
 
-Visit `http://localhost:5173` in your browser to see the application.
+- **Browser:** Visit `http://localhost:5173` (or the port Vite prints). Notes and settings use `localStorage`.
+- **Electron:** Runs the same React app in a window; notes and settings are stored in JSON files under the app’s user data directory.
 
 ---
 
