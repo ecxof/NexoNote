@@ -9,7 +9,9 @@
     "electron:dev": "concurrently \"vite\" \"wait-on http://127.0.0.1:5173 && electron .\"",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "rebuild": "electron-rebuild -f -w better-sqlite3"
   },
   "dependencies": {
     "@tiptap/extension-highlight": "^3.19.0",
@@ -25,6 +27,7 @@
     "@tiptap/pm": "^3.19.0",
     "@tiptap/react": "^3.19.0",
     "@tiptap/starter-kit": "^3.19.0",
+    "better-sqlite3": "^12.6.2",
     "lucide-react": "^0.563.0",
     "nanoid": "^5.0.9",
     "react": "^19.2.0",
@@ -37,6 +40,7 @@
     "@vitejs/plugin-react": "^5.1.1",
     "concurrently": "^9.1.0",
     "electron": "^33.2.0",
+    "electron-rebuild": "^3.2.9",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",

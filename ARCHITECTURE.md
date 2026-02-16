@@ -1,395 +1,212 @@
-# 🏗️ NexoNote Architecture Overview
+# NexoNote Architecture Overview
 
 ## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    NexoNote Application                      │
-│                  (React + Vite + Electron)                   │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                      index.html (Entry)                      │
-│                    <div id="root"></div>                     │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    main.jsx (Bootstrap)                      │
-│              ReactDOM.createRoot(App Component)              │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    App.jsx (Root Component)                  │
-│                  <div className="app-container">             │
-│                     <Sidebar />                              │
-│                     <MainContent />                          │
-└─────────────────────────────────────────────────────────────┘
-         ↓                                      ↓
-    ┌────────────────┐              ┌──────────────────────┐
-    │   Sidebar.jsx  │              │ MainContent.jsx      │
-    ├────────────────┤              ├──────────────────────┤
-    │ - Logo Section │              │ - Welcome Header     │
-    │ - Nav Menu (6) │              │ - Dashboard Grid     │
-    │ - Profile Link │              │ - 6 Card Components  │
-    │ - Active State │              │ - Responsive Layout  │
-    └────────────────┘              └──────────────────────┘
-         ↓                                      ↓
-    CSS: App.css                          CSS: App.css
-    Colors: index.css                     Colors: index.css
+Renderer Process (React + Vite)          Main Process (Electron + Node)
+┌──────────────────────────────┐        ┌──────────────────────────────┐
+│  React Components            │        │  electron/main.cjs           │
+│  (Dashboard, NoteEditor,     │  IPC   │  - Window management         │
+│   FolderView, PDFViewer,     │◄─────►│  - IPC handlers              │
+│   Sidebar, TabBar, Settings) │        │                              │
+│                              │        │  electron/database.cjs       │
+│  Service Layer               │        │  - SQLite schema + queries   │
+│  (noteService, folderService,│        │  - JSON migration            │
+│   pdfService, settingsService│        │                              │
+│                              │        │  electron/preload.cjs        │
+│  localStorage fallback       │        │  - contextBridge API         │
+│  (browser dev mode)          │        │                              │
+└──────────────────────────────┘        │  nexonote.db (SQLite)        │
+                                        └──────────────────────────────┘
 ```
+
+### Storage Routing
+
+All service files use a `hasElectron()` check:
+- **Electron mode** (`npm run electron:dev`): IPC → main process → SQLite
+- **Browser mode** (`npm run dev`): localStorage directly
 
 ---
 
 ## Component Hierarchy
 
 ```
-App
-├── Sidebar (Fixed 256px width)
-│   ├── Header Section
-│   │   ├── Logo (NexoNote)
-│   │   └── Tagline (Study Smart)
-│   ├── Navigation Menu
-│   │   ├── Home (Active)
-│   │   ├── Notes
-│   │   ├── Subjects
-│   │   ├── Schedule
-│   │   ├── Analytics
-│   │   └── Settings
-│   └── Profile Section
-│       └── User Avatar
+App.jsx (root state: notes, folders, pdfs, tabs, settings, modals)
+├── ItemMenuProvider (context for single-open three-dot menus)
+├── ConfirmModal / PromptModal (global modals)
+├── Sidebar (resizable, collapsible)
+│   ├── Logo + Navigation (Home, Folders, Settings)
+│   └── SidebarTree
+│       ├── "All Notes" button
+│       ├── Uncategorized notes + PDFs (with NoteItemMenu / PdfItemMenu)
+│       └── Folder nodes (recursive, with FolderItemMenu)
+│           ├── Child folders
+│           ├── Notes (with NoteItemMenu)
+│           └── PDFs (with PdfItemMenu)
 │
-└── MainContent (Flex-grow, Scrollable)
-    ├── Welcome Header
-    │   ├── Title (Welcome Back!)
-    │   └── Subtitle (Learning journey)
+└── MainContent (view router)
+    ├── view="dashboard" → Dashboard
+    │   ├── Welcome header + Create Note / Import PDF buttons
+    │   ├── Flashcard hero card
+    │   └── Recent notes grid (with NoteItemMenu)
     │
-    └── Dashboard Grid (Auto-fit layout)
-        ├── Card 1: Quick Start
-        │   └── Button: Start Studying
-        ├── Card 2: Recent Notes
-        │   └── Empty State: No recent notes
-        ├── Card 3: Today's Schedule
-        │   └── Button: View Schedule
-        ├── Card 4: This Week (Stats)
-        │   ├── Hours Studied: 0
-        │   └── Sessions: 0
-        ├── Card 5: Active Subjects
-        │   └── Button: Create Subject
-        └── Card 6: Resources
-            └── Empty State: No resources
+    ├── view="folder" → FolderView
+    │   ├── Breadcrumb navigation
+    │   ├── Search + sort + grid/list toggle
+    │   └── Folder cards + Note cards + PDF cards (with menus)
+    │
+    ├── view="settings" → Settings
+    │   └── Auto-save toggle, font size, theme selector
+    │
+    ├── view="editor" → WorkspaceLayout
+    │   ├── NoteViewSidebar (left, resizable)
+    │   │   ├── Tags section (add/edit/delete with autocomplete)
+    │   │   ├── Semantic Graph placeholder
+    │   │   └── Contents outline (heading navigation)
+    │   │
+    │   ├── TabBar (horizontal tabs for open notes/PDFs)
+    │   ├── Content area (switches on active tab type):
+    │   │   ├── EmptyTabView (no file open)
+    │   │   ├── NoteEditor → RichTextEditor (TipTap)
+    │   │   │   ├── Toolbar (formatting, headings, lists, etc.)
+    │   │   │   ├── Editor body (TipTap ProseMirror)
+    │   │   │   └── Floating selection toolbar (bold, italic, highlight, "Explain This")
+    │   │   └── PDFViewer (embed tag + data URL)
+    │   │
+    │   └── NoteViewRightSidebar (right, resizable)
+    │       ├── AI Assistant section (placeholder cards)
+    │       ├── Flashcards section (placeholder)
+    │       └── Export button (note → PDF via print)
+    │
+    └── view="semantic-map" → Semantic Map placeholder
 ```
 
 ---
 
-## Layout Visualization
+## File Structure
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│  HEADER (Not implemented yet)                            │
-└──────────────────────────────────────────────────────────┘
-┌─────────────────┬──────────────────────────────────────┐
-│                 │                                      │
-│   SIDEBAR       │      MAIN CONTENT AREA              │
-│   (256px)       │      (Flex-grow)                     │
-│                 │                                      │
-│  ┌──────────┐   │  Welcome Back! 🎉                   │
-│  │ NexoNote │   │  Study Smart Subtitle                │
-│  │Study     │   │                                      │
-│  │Smart     │   │  ┌─────────┐ ┌─────────┐ ┌─────────┐│
-│  └──────────┘   │  │ Quick   │ │ Recent  │ │ Today's ││
-│                 │  │ Start   │ │ Notes   │ │ Schedule││
-│  ┌──────────┐   │  └─────────┘ └─────────┘ └─────────┘│
-│  │📚 Home   │   │                                      │
-│  │📝 Notes  │   │  ┌─────────┐ ┌─────────┐ ┌─────────┐│
-│  │📖 Subj. │   │  │ This    │ │ Active  │ │Resources││
-│  │📅 Sched │   │  │ Week    │ │ Subjects│ │         ││
-│  │📊 Analyt│   │  └─────────┘ └─────────┘ └─────────┘│
-│  │⚙️ Settings   │                                      │
-│  └──────────┘   │  (Scrollable Area ↓)                │
-│                 │                                      │
-│  [👤 Profile]   │                                      │
-│                 │                                      │
-└─────────────────┴──────────────────────────────────────┘
-```
-
----
-
-## File Dependencies
-
-```
-src/
-├── main.jsx
-│   └── imports: App.jsx
+NexoNote/
+├── electron/
+│   ├── main.cjs              # Electron main process, IPC handlers
+│   ├── preload.cjs            # contextBridge API (notes, folders, pdfs, settings)
+│   ├── database.cjs           # SQLite init, schema, CRUD, JSON migration
+│   └── test-database.cjs      # Smoke tests for database module
 │
-├── App.jsx
-│   ├── imports: ./App.css
-│   ├── imports: ./components/Sidebar.jsx
-│   └── imports: ./components/MainContent.jsx
-│
-├── App.css
-│   └── depends on: index.css (CSS variables)
-│
-├── index.css
-│   └── defines: All CSS variables and global styles
-│
-├── components/
-│   ├── Sidebar.jsx
-│   │   └── imports: React.useState
-│   │       uses: .sidebar, .sidebar-menu-link classes from App.css
+├── src/
+│   ├── main.jsx               # React entry point
+│   ├── App.jsx                # Root component, global state, handlers
+│   ├── App.css                # All component styles (~3400 lines)
+│   ├── index.css              # CSS variables, global resets, themes
 │   │
-│   └── MainContent.jsx
-│       └── uses: .main-content, .dashboard-grid, .card classes from App.css
+│   ├── components/
+│   │   ├── Dashboard.jsx      # Home view with recent notes
+│   │   ├── EmptyTabView.jsx   # "No file open" placeholder
+│   │   ├── FolderList.jsx     # Legacy folder list (unused)
+│   │   ├── FolderView.jsx     # Folder contents with search/sort/grid
+│   │   ├── ItemMenu.jsx       # Three-dot menus (NoteItemMenu, PdfItemMenu, FolderItemMenu)
+│   │   ├── MainContent.jsx    # View router + workspace layout
+│   │   ├── Modal.jsx          # ConfirmModal, PromptModal
+│   │   ├── NoteEditor.jsx     # Note editing wrapper (title + RichTextEditor)
+│   │   ├── NoteList.jsx       # Legacy note list (unused)
+│   │   ├── NoteViewRightSidebar.jsx  # AI + flashcards sidebar
+│   │   ├── NoteViewSidebar.jsx       # Tags, graph, contents sidebar
+│   │   ├── PDFFloatingToolbar.jsx    # Selection toolbar for PDFs
+│   │   ├── PDFViewer.jsx      # PDF rendering with embed + data URL
+│   │   ├── RichTextEditor.jsx # TipTap editor with toolbar + floating toolbar
+│   │   ├── Settings.jsx       # Auto-save, font size, theme
+│   │   ├── Sidebar.jsx        # Main nav sidebar (resizable, collapsible)
+│   │   ├── SidebarTree.jsx    # Hierarchical folder/note/PDF tree
+│   │   └── TabBar.jsx         # Horizontal tab bar for open files
+│   │
+│   ├── services/
+│   │   ├── noteService.js     # Note CRUD (IPC or localStorage)
+│   │   ├── folderService.js   # Folder CRUD (IPC or localStorage)
+│   │   ├── pdfService.js      # PDF CRUD (IPC or localStorage)
+│   │   └── settingsService.js # Settings read/write (IPC or localStorage)
+│   │
+│   └── context/
+│       └── ItemMenuContext.jsx # Single-open menu behavior
 │
-└── index.html
-    └── root: <div id="root"></div>
+├── public/
+│   ├── vite.svg
+│   └── NexoNote Logo 2.png
+│
+├── package.json               # Dependencies + scripts
+├── vite.config.js             # Vite configuration
+└── eslint.config.js           # ESLint configuration
 ```
 
 ---
 
-## Color Flow
+## Data Model
 
-```
-CSS Variables (index.css)
-├── Backgrounds
-│   ├── --bg-primary: #0f172a
-│   ├── --bg-secondary: #111827
-│   └── --bg-sidebar: #13161C
-├── Text
-│   ├── --text-primary: #ffffff
-│   ├── --text-secondary: #9ca3af
-│   └── --text-tertiary: #6b7280
-├── Accents
-│   ├── --accent-primary: #2563EB
-│   └── --accent-hover: #1d4ed8
-└── Borders
-    └── --border-color: #1f2937
-         ↓
-    Applied across all components
-         ↓
-    Sidebar, Cards, Buttons, Text
-         ↓
-    Consistent dark theme throughout
-```
+### Entities
+
+| Entity   | Key Fields                                           | Storage              |
+|----------|------------------------------------------------------|----------------------|
+| Note     | id, title, content (HTML), folderId, tags[], createdAt, updatedAt | SQLite `notes` table / localStorage |
+| Folder   | id, name, parentId (self-ref for nesting), createdAt | SQLite `folders` table / localStorage |
+| PDF      | id, title, filePath (data URL or path), folderId, createdAt, updatedAt | SQLite `pdfs` table / localStorage |
+| Tag      | id (auto), name (unique)                             | SQLite `tags` + `note_tags` join table |
+| Settings | key-value pairs (autoSave, fontSize, theme, sidebarWidth, sidebarCollapsed) | SQLite `settings` table / localStorage |
+
+### Relationships
+
+- Note.folderId → Folder.id (nullable; null = uncategorized)
+- PDF.folderId → Folder.id (nullable)
+- Folder.parentId → Folder.id (self-referential for nesting)
+- Note ↔ Tag: many-to-many via `note_tags` join table
+- On folder delete: subfolders re-parented, notes/PDFs moved to "All"
 
 ---
 
 ## State Management
 
-### Current State
-```jsx
-Sidebar.jsx:
-  - activeItem: 'home' (local state)
-  - Updates on menu click
-  - Changes active class on sidebar-menu-link
-```
+All global state lives in `App.jsx`:
 
-### Future State (When Needed)
-```jsx
-App.jsx:
-  - Could use Context API for shared state
-  - Or Redux for complex state
-  - Pass activeItem down as prop
-  - Handle navigation globally
-```
-
----
-
-## CSS Structure
-
-```
-index.css
-├── :root (CSS variables)
-├── * (box-sizing)
-├── body (dark background)
-├── #root (flex container)
-├── Typography (h1, h2, h3, p)
-├── Links (a, a:hover)
-└── Buttons (button styles)
-
-App.css
-├── .app-container (flex layout)
-├── .sidebar (fixed width sidebar)
-│   ├── .sidebar-header
-│   ├── .sidebar-logo
-│   ├── .sidebar-menu
-│   │   ├── .sidebar-menu-item
-│   │   └── .sidebar-menu-link
-│   │       ├── :hover
-│   │       └── .active
-│   └── Profile section
-├── .main-content (scrollable)
-│   ├── .main-content-header
-│   ├── .main-content-title
-│   ├── .main-content-subtitle
-│   └── .dashboard-grid
-│       └── .card
-│           ├── .card-title
-│           ├── .card-description
-│           └── .card-footer
-└── Scrollbar styling
-```
-
----
-
-## Data Flow
-
-```
-User Interaction
-    ↓
-Sidebar Menu Click
-    ↓
-setActiveItem('id')
-    ↓
-Component Re-render
-    ↓
-className = `sidebar-menu-link ${activeItem === item.id ? 'active' : ''}`
-    ↓
-CSS applies .active styles
-    ↓
-Visual update (blue background)
-    ↓
-User sees highlighted menu item
-```
-
----
-
-## Responsive Behavior
-
-```
-Large Screens (1200px+)
-└── Dashboard Grid: 3 columns
-    ├── Card 1 | Card 2 | Card 3
-    └── Card 4 | Card 5 | Card 6
-
-Tablets (768px - 1200px)
-└── Dashboard Grid: 2 columns
-    ├── Card 1 | Card 2
-    ├── Card 3 | Card 4
-    └── Card 5 | Card 6
-
-Mobile (<768px)
-└── Dashboard Grid: 1 column
-    ├── Card 1
-    ├── Card 2
-    ├── Card 3
-    ├── Card 4
-    ├── Card 5
-    └── Card 6
-```
-
----
-
-## Future Integration Points
-
-```
-┌────────────────────────────────────────┐
-│        React + Electron Core           │
-├────────────────────────────────────────┤
-│                                        │
-│  ┌──────────────────────────────────┐ │
-│  │    React Frontend (Current)      │ │
-│  │  - Sidebar Navigation            │ │
-│  │  - Dashboard Cards               │ │
-│  └──────────────────────────────────┘ │
-│                  ↓                     │
-│  ┌──────────────────────────────────┐ │
-│  │    React Router (To Add)         │ │
-│  │  - Route to Notes page           │ │
-│  │  - Route to Subjects page        │ │
-│  │  - Route to Schedule page        │ │
-│  └──────────────────────────────────┘ │
-│                  ↓                     │
-│  ┌──────────────────────────────────┐ │
-│  │    State Management (To Add)     │ │
-│  │  - Context API or Redux          │ │
-│  │  - Global app state              │ │
-│  └──────────────────────────────────┘ │
-└────────────────────────────────────────┘
-            ↓                ↓
-   ┌────────────────┐   ┌────────────────┐
-   │   Node.js      │   │   Electron     │
-   │   Backend      │   │   Main Process │
-   │   - API        │   │   - File system│
-   │   - Business   │   │   - Native UI  │
-   │     Logic      │   │   - OS events  │
-   └────────────────┘   └────────────────┘
-            ↓                ↓
-   ┌────────────────┐   ┌────────────────┐
-   │   SQLite       │   │   Python       │
-   │   Database     │   │   Backend      │
-   │   - Notes      │   │   - scikit-learn
-   │   - Subjects   │   │   - Analytics  │
-   │   - Schedule   │   │   - ML Models  │
-   │   - Analytics  │   │   - Predictions│
-   └────────────────┘   └────────────────┘
-```
+| State           | Type       | Purpose                            |
+|-----------------|------------|------------------------------------|
+| notes           | Note[]     | All notes                          |
+| folders         | Folder[]   | All folders                        |
+| pdfs            | PDF[]      | All PDFs                           |
+| tabs            | Tab[]      | Open tabs (type, resourceId, label)|
+| activeTabId     | string     | Currently active tab               |
+| view            | string     | Current view (dashboard/folder/editor/settings) |
+| settings        | object     | App settings                       |
+| currentNoteId   | string     | Active note for editor             |
+| selectedFolderId| string     | Active folder for folder view      |
+| copiedNoteId    | string     | Clipboard for note copy/paste      |
+| copiedPdfId     | string     | Clipboard for PDF copy/paste       |
+| modal           | object     | Active modal config                |
 
 ---
 
 ## Technology Stack
 
-```
-Frontend Layer
-├── React 19.2.0 (UI Framework)
-├── Vite 7.2.4 (Build Tool)
-├── Modern CSS (Styling)
-│   ├── Flexbox (Layout)
-│   ├── CSS Grid (Dashboard)
-│   ├── CSS Variables (Theming)
-│   └── Transitions (Animations)
-└── JSX (Template Language)
-
-Application Layer (Future)
-├── React Router (Navigation)
-├── Context API (State)
-├── Electron (Desktop)
-└── Node.js (Runtime)
-
-Data Layer (Future)
-├── SQLite (Local Database)
-├── REST API (Communication)
-└── File System (Storage)
-
-Analytics Layer (Future)
-├── Python 3.x (Data Science)
-├── scikit-learn (ML Library)
-├── pandas (Data Processing)
-└── numpy (Numerical Computing)
-```
+| Layer        | Technology           | Version  |
+|--------------|----------------------|----------|
+| UI Framework | React                | 19.2.0   |
+| Build Tool   | Vite                 | 7.x      |
+| Desktop Shell| Electron             | 33.x     |
+| Rich Text    | TipTap (StarterKit)  | 3.19.0   |
+| Database     | better-sqlite3       | 12.x     |
+| Icons        | Lucide React         | 0.563.0  |
+| IDs          | nanoid               | 5.x      |
 
 ---
 
 ## Performance Considerations
 
-### Current Optimizations
-✓ CSS variables for no runtime overhead  
-✓ Responsive grid with auto-fit (no hardcoded breakpoints)  
-✓ CSS transitions instead of JavaScript animations  
-✓ No unnecessary state updates  
-✓ Lightweight component structure  
-
-### Future Optimizations
-- [ ] Code splitting with React.lazy()
-- [ ] Image optimization
-- [ ] Lazy loading for dashboard cards
-- [ ] Virtual scrolling for large lists
-- [ ] Memoization of components
-- [ ] Bundle size analysis
+- better-sqlite3 is synchronous (no async overhead, fine for single-window)
+- WAL journal mode for concurrent reads
+- Service layer caches nothing — reads go to storage on every call
+- TipTap editor is the heaviest component; content stored as HTML
+- PDF data URLs can be large (base64); stored in SQLite `file_path` column
+- Tab switching preserves component state via conditional rendering
 
 ---
 
-## Summary
-
-The NexoNote architecture is designed to be:
-- **Modular** - Easy to add new components
-- **Scalable** - Ready for complex features
-- **Maintainable** - Clean, well-organized code
-- **Responsive** - Works on all screen sizes
-- **Extensible** - Ready for Electron, Python integration
-- **Dark-Themed** - Premium, modern look
-
----
-
-**Architecture Version**: 1.0  
-**Last Updated**: February 5, 2026  
-**Status**: Complete and Production Ready
+**Architecture Version**: 2.0
+**Last Updated**: February 14, 2026
+**Status**: Rich text editor, file management, settings, PDF support, and SQLite migration complete

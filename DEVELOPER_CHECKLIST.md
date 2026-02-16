@@ -5,13 +5,15 @@
 ### Daily Setup (30 seconds)
 ```bash
 # 1. Navigate to project
-cd "E:\My Programming Projects\nexonote"
+cd NexoNote
 
-# 2. Start dev server
+# 2a. Start browser dev server (localStorage, no Electron)
 npm run dev
 
-# 3. Open in browser
-http://localhost:5173
+# 2b. OR start Electron dev mode (SQLite storage)
+npm run electron:dev
+
+# 3. Browser mode opens at http://localhost:5173
 ```
 
 ### Weekly Checklist
@@ -108,16 +110,31 @@ export default ComponentName;
 ### Add a New Component
 ```bash
 # 1. Create file in src/components/
-touch src/components/YourComponent.jsx
-
-# 2. Add to App.css
-# Add .your-component class styles
-
-# 3. Import in App.jsx or parent
-import YourComponent from './components/YourComponent'
-
+# 2. Add styles to src/App.css
+# 3. Import in parent component (App.jsx, MainContent.jsx, etc.)
 # 4. Use in render
-<YourComponent />
+```
+
+### Add a New Data Entity (Electron + SQLite)
+1. Add `CREATE TABLE` in `electron/database.cjs` (`initSchema` function)
+2. Add CRUD functions in `database.cjs` (e.g., `entityGetAll`, `entityCreate`, etc.)
+3. Add IPC handlers in `electron/main.cjs` (e.g., `entity:getAll`, `entity:create`)
+4. Add `contextBridge` methods in `electron/preload.cjs`
+5. Create `src/services/entityService.js` using the `hasElectron()` pattern
+6. Add state + handlers in `App.jsx`
+
+### Rebuild Native Modules (better-sqlite3)
+```bash
+# After npm install or Node version change:
+npm run rebuild
+
+# Or manually:
+npx electron-rebuild -f -w better-sqlite3
+```
+
+### Run Database Tests
+```bash
+node electron/test-database.cjs
 ```
 
 ### Change a Color

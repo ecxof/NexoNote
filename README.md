@@ -1,22 +1,24 @@
 # 📚 NexoNote - Desktop Study Application
 
-> A modern, beautiful desktop study application built with React, Electron, SQLite, and Python ML integration.
+> A modern desktop note-taking application built with React, Electron, and SQLite. Rich text editing, PDF support, and offline-first storage.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-2.0.0-blue)
 ![Status](https://img.shields.io/badge/status-Active%20Development-green)
 ![License](https://img.shields.io/badge/license-MIT-brightgreen)
 
 ## 🎯 Overview
 
-NexoNote is a comprehensive study companion designed to help students organize their learning, track progress, and optimize their study techniques using machine learning insights.
+NexoNote is a desktop note-taking and study companion built with Electron and React. It supports rich text editing, PDF import/viewing, folder-based organization, and local-only storage.
 
 ### Key Features
-- 📝 **Smart Note-Taking** - Organize notes by subject and topic
-- 📊 **Learning Analytics** - Track study time, sessions, and progress
-- 📅 **Study Scheduling** - Plan and manage your study sessions
-- 🤖 **AI-Powered Insights** - Get personalized study recommendations (Coming Soon)
-- 🔐 **Local First** - All data stored locally with SQLite
-- 🌙 **Dark Mode** - Premium dark theme optimized for studying
+- 📝 **Rich Text Editor** - Full formatting: bold, italic, headings, lists, highlights, images, links, code blocks
+- 📂 **File & Folder Management** - Nested folders, rename, copy, move, delete for notes and PDFs
+- 📄 **PDF Support** - Import, view (inline embed), and manage PDF files alongside notes
+- 🏷️ **Tags** - Tag notes with autocomplete suggestions and inline editing
+- 🖥️ **Tab Bar** - Open multiple notes and PDFs in browser-style tabs
+- 🗄️ **SQLite Storage** - Local database in Electron mode; localStorage fallback in browser
+- 🌗 **Dark & Light Themes** - Configurable via Settings, applies instantly
+- 🔐 **Offline-First** - All data stored locally, no cloud required
 
 ---
 
@@ -50,38 +52,52 @@ npm run electron:dev
 
 ## 📦 Tech Stack
 
-### Current Stack
-- **Frontend**: React 19.2.0
-- **Build Tool**: Vite 7.2.4
-- **Styling**: Modern CSS (Flexbox, Grid, Variables)
-- **State Management**: React Hooks
-
-### Planned Stack
-- **Desktop**: Electron
-- **Database**: SQLite
-- **Python Integration**: scikit-learn, pandas, numpy
-- **Routing**: React Router
-- **State Management**: Context API / Redux
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| UI Framework | React 19 | Components and state |
+| Build Tool | Vite 7.x | Fast HMR dev server |
+| Desktop Shell | Electron 33.x | Native window, file system, IPC |
+| Rich Text Editor | TipTap 3.x (ProseMirror) | Note content editing |
+| Database | better-sqlite3 12.x | Local storage (Electron mode) |
+| Icons | Lucide React | UI iconography |
+| IDs | nanoid | Unique identifiers |
+| Styling | CSS Variables + Flexbox + Grid | Theming and layout |
 
 ---
 
 ## 🏗️ Project Structure
 
 ```
-nexonote/
+NexoNote/
+├── electron/
+│   ├── main.cjs                 # Electron main process + IPC handlers
+│   ├── preload.cjs              # contextBridge API
+│   ├── database.cjs             # SQLite schema, CRUD, migration
+│   └── test-database.cjs        # Database smoke tests
 ├── src/
-│   ├── components/
-│   │   ├── Sidebar.jsx          # Navigation sidebar
-│   │   └── MainContent.jsx      # Dashboard area
-│   ├── App.jsx                  # Root component
+│   ├── components/              # 18 React components
+│   │   ├── Dashboard.jsx        # Home view
+│   │   ├── RichTextEditor.jsx   # TipTap editor + toolbars
+│   │   ├── NoteEditor.jsx       # Note editing wrapper
+│   │   ├── PDFViewer.jsx        # PDF viewer (embed)
+│   │   ├── Sidebar.jsx          # Main nav sidebar
+│   │   ├── SidebarTree.jsx      # Folder/note/PDF tree
+│   │   ├── TabBar.jsx           # Open file tabs
+│   │   ├── FolderView.jsx       # Folder contents
+│   │   ├── Settings.jsx         # App settings
+│   │   └── ...                  # (see COMPLETE_FILE_LISTING.md)
+│   ├── services/                # Data access layer (4 files)
+│   │   ├── noteService.js       # Note CRUD
+│   │   ├── folderService.js     # Folder CRUD
+│   │   ├── pdfService.js        # PDF CRUD
+│   │   └── settingsService.js   # Settings read/write
+│   ├── context/
+│   │   └── ItemMenuContext.jsx   # Single-open menu context
+│   ├── App.jsx                  # Root component + global state
 │   ├── App.css                  # Component styles
-│   ├── index.css                # Global styles & colors
+│   ├── index.css                # CSS variables + themes
 │   └── main.jsx                 # Entry point
-├── public/                      # Static assets
-├── ARCHITECTURE.md              # Detailed architecture guide
-├── PROJECT_SETUP.md             # Setup documentation
-├── STYLING_GUIDELINES.md        # CSS guidelines
-├── QUICK_START.md               # Quick reference
+├── public/                      # Static assets + logo
 └── package.json
 ```
 
@@ -117,15 +133,20 @@ nexonote/
 ## 📖 Available Scripts
 
 ```bash
-# Development
-npm run dev          # Start Vite dev server
+# Development (browser, uses localStorage)
+npm run dev
 
-# Production
-npm run build        # Build for production
-npm run preview      # Preview production build
+# Development (Electron desktop app, uses SQLite)
+npm run electron:dev
 
-# Code Quality
-npm run lint         # Run ESLint
+# Production build
+npm run build
+
+# Rebuild native modules for Electron
+npm run rebuild
+
+# Code quality
+npm run lint
 ```
 
 ---
@@ -141,50 +162,55 @@ We provide comprehensive documentation for all aspects of the project:
 
 ---
 
-## 🏠 Home Screen Components
+## 🏠 Application Views
 
-### Sidebar Navigation
-- NexoNote logo with tagline
-- 6 navigation items (Home, Notes, Subjects, Schedule, Analytics, Settings)
-- Active state highlighting
-- User profile section
+### Dashboard (Home)
+- Greeting header with "Create New Note" and "Import PDF" buttons
+- Flashcard hero card (placeholder)
+- Recent notes grid with tags, file path, and timestamps
 
-### Main Dashboard
-- Welcome header with greeting
-- 6 responsive dashboard cards:
-  1. **Quick Start** - Begin study sessions
-  2. **Recent Notes** - Access study materials
-  3. **Today's Schedule** - View daily plan
-  4. **This Week** - Learning statistics
-  5. **Active Subjects** - Manage subjects
-  6. **Resources** - Quick access links
+### Note Editor
+- Editable title and rich text body (TipTap)
+- Full toolbar: undo/redo, headings, bold, italic, strikethrough, underline, highlight (split-button with color picker), lists, alignment, links, images, code blocks
+- Floating contextual toolbar on text selection
+- Left sidebar: tags, contents outline, semantic graph placeholder
+- Right sidebar: AI assistant placeholder, flashcard placeholder, export
+
+### Folder View
+- Breadcrumb navigation, search bar, sort control
+- Grid/list view toggle
+- Folder, note, and PDF cards with three-dot menus
+
+### Settings
+- Auto-save toggle, font size selector, dark/light theme toggle
 
 ---
 
 ## 🎯 Features
 
 ### ✅ Implemented
-- [x] Dark theme design system
-- [x] Responsive layout (Flexbox)
-- [x] Sidebar navigation with active states
-- [x] Dashboard card grid
-- [x] CSS variables for theming
-- [x] Smooth transitions and hover effects
-- [x] Custom scrollbars
-- [x] Typography hierarchy
-
-### 🔄 In Progress
-- [ ] React Router integration
-- [ ] Electron desktop setup
-- [ ] SQLite database connection
+- [x] Rich text editor (TipTap): bold, italic, underline, strikethrough, headings (H1–H4), bullet/ordered/task lists, blockquote, code/code block, highlight (multi-color), links, images, text alignment, sub/superscript
+- [x] Floating contextual toolbar on text selection
+- [x] Full file/folder CRUD (create, rename, copy, move, delete)
+- [x] Nested folder hierarchy
+- [x] PDF import, inline viewing, and file management
+- [x] Tab bar for multi-file editing
+- [x] Tags system with autocomplete and inline editing
+- [x] Dark and light theme support (instant toggle)
+- [x] Settings panel (auto-save, font size, theme)
+- [x] Resizable + collapsible sidebars (main, note-left, note-right)
+- [x] SQLite storage backend (Electron mode)
+- [x] localStorage fallback (browser dev mode)
+- [x] Note export to PDF (via print)
+- [x] Custom modals (confirm, prompt) replacing browser dialogs
+- [x] Breadcrumb navigation in folder view and note view
 
 ### 📋 Upcoming
-- [ ] Note-taking functionality
-- [ ] Subject management
-- [ ] Study scheduling
-- [ ] Analytics dashboard
-- [ ] Python ML integration
-- [ ] User authentication
+- [ ] Semantic graph / knowledge map
+- [ ] AI-assisted "Explain This" feature
+- [ ] Flashcard generation (MCQ, True/False, Flip Card)
+- [ ] Full Electron packaging and distribution
+- [ ] Python ML integration for analytics
 
 ---
 
@@ -243,24 +269,22 @@ ESLint rules are configured in `eslint.config.js` with React-specific rules for 
 
 ## 🚀 Deployment
 
-### Build for Production
+### Build for Production (Web)
 ```bash
 npm run build
 ```
+Creates an optimized build in the `dist/` directory.
 
-This creates an optimized build in the `dist/` directory.
-
-### Electron Integration (Coming Soon)
+### Electron Desktop App
 ```bash
-npm install electron --save-dev
-# Then configure electron main process
+# Development
+npm run electron:dev
+
+# If better-sqlite3 fails to load, rebuild native modules:
+npm run rebuild
 ```
 
-### Python Backend (Coming Soon)
-```bash
-pip install scikit-learn pandas numpy
-# Set up Python server for ML features
-```
+Electron packaging for distribution (e.g., electron-builder) is planned but not yet configured.
 
 ---
 
@@ -291,33 +315,32 @@ For questions or issues:
 
 ## 🗺️ Roadmap
 
-### Phase 1: MVP (Current)
-- ✅ Home screen UI
-- ⏳ Basic navigation
-- ⏳ Note creation
+### Phase 1: Core Note Editor ✅
+- Rich text editor with full formatting
+- File/folder management with CRUD
+- Settings panel
+- Dark/light themes
 
-### Phase 2: Core Features
-- React Router setup
-- Notes management
-- Subject organization
-- Schedule planning
+### Phase 2: PDF & Storage ✅
+- PDF import, viewing, file management
+- Tab bar for multi-file workspace
+- SQLite database backend
+- JSON-to-SQLite migration
 
-### Phase 3: Integration
-- Electron desktop app
-- SQLite database
-- Data persistence
+### Phase 3: Intelligence (Next)
+- Semantic graph / knowledge linking
+- AI-assisted "Explain This" for selected text
+- Flashcard generation and review
 
-### Phase 4: Intelligence
-- Python backend
-- ML-based analytics
-- Study recommendations
-- Pattern analysis
-
-### Phase 5: Polish
-- Enhanced UI/UX
+### Phase 4: Distribution
+- Electron packaging (installer builds)
+- Auto-update support
 - Performance optimization
-- User authentication
-- Cloud sync (optional)
+
+### Phase 5: Analytics
+- Python ML backend integration
+- Study pattern analysis
+- Personalized recommendations
 
 ---
 
@@ -333,10 +356,10 @@ For questions or issues:
 ---
 
 **Status**: 🟢 Active Development  
-**Last Updated**: February 5, 2026  
-**Version**: 1.0.0  
+**Last Updated**: February 14, 2026  
+**Version**: 2.0.0  
 
-Enjoy studying smarter with NexoNote! 🎓
+Enjoy studying smarter with NexoNote!
 
 ## React Compiler
 

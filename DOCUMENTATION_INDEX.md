@@ -37,12 +37,13 @@ Welcome to NexoNote! Use this index to find the right documentation for your nee
 
 ### 2️⃣ "I Want to Understand the System"
 **Read**: [ARCHITECTURE.md](./ARCHITECTURE.md)
-- System architecture
-- Component hierarchy
-- File dependencies
-- Data flow
+- System architecture (Renderer ↔ Main process)
+- Component hierarchy (18 components)
+- File structure
+- Data model (notes, folders, PDFs, tags, settings)
+- State management (App.jsx)
 - Technology stack
-- Future integration points
+- Storage routing (SQLite vs localStorage)
 
 ### 3️⃣ "I Want to Add New Components"
 **Read**: [STYLING_GUIDELINES.md](./STYLING_GUIDELINES.md)
@@ -74,12 +75,15 @@ Welcome to NexoNote! Use this index to find the right documentation for your nee
 
 | File | Purpose | Read Time | Best For |
 |------|---------|-----------|----------|
-| [README.md](./README.md) | Project overview | 10 min | Everyone |
+| [README.md](./README.md) | Project overview, features, roadmap | 10 min | Everyone |
 | [QUICK_START.md](./QUICK_START.md) | Quick setup | 5 min | New developers |
 | [PROJECT_SETUP.md](./PROJECT_SETUP.md) | Detailed setup | 15 min | Thorough understanding |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | System design | 20 min | Developers |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, data model, components | 20 min | Developers |
+| [COMPLETE_FILE_LISTING.md](./COMPLETE_FILE_LISTING.md) | Full file inventory | 5 min | Developers |
+| [DEVELOPER_CHECKLIST.md](./DEVELOPER_CHECKLIST.md) | Daily workflow, standards, patterns | 10 min | Developers |
 | [STYLING_GUIDELINES.md](./STYLING_GUIDELINES.md) | CSS guide | 15 min | Component creators |
 | [COLOR_AND_STYLE_REFERENCE.md](./COLOR_AND_STYLE_REFERENCE.md) | Visual reference | 10 min | Designers |
+| [CLAUDE.md](./CLAUDE.md) | AI assistant context and project rules | 3 min | AI / Contributors |
 | [SETUP_CHECKLIST.md](./SETUP_CHECKLIST.md) | Verification | 5 min | QA/Verification |
 | **This File** | Navigation | 5 min | You right now! |
 
@@ -117,10 +121,16 @@ Welcome to NexoNote! Use this index to find the right documentation for your nee
 ### "How do I...?"
 
 #### Start the dev server?
-👉 [QUICK_START.md](./QUICK_START.md) - Commands section
+👉 [QUICK_START.md](./QUICK_START.md) - Commands section (`npm run dev` or `npm run electron:dev`)
 
 #### Add a new component?
 👉 [STYLING_GUIDELINES.md](./STYLING_GUIDELINES.md) - "Adding New Components"
+
+#### Add a new data entity (with SQLite)?
+👉 [DEVELOPER_CHECKLIST.md](./DEVELOPER_CHECKLIST.md) - "Add a New Data Entity" section
+
+#### See the full file inventory?
+👉 [COMPLETE_FILE_LISTING.md](./COMPLETE_FILE_LISTING.md)
 
 #### Change colors?
 👉 [COLOR_AND_STYLE_REFERENCE.md](./COLOR_AND_STYLE_REFERENCE.md) - "Customization Guide"
