@@ -17,11 +17,13 @@ export default function Sidebar({
   view,
   setView,
   notes,
+  pdfs = [],
   folders,
   currentNoteId,
   selectedFolderId,
   onSelectNote,
   onSelectFolder,
+  onOpenInTab,
   onCreateNote,
   onCreateFolder,
   onRenameNote,
@@ -32,6 +34,12 @@ export default function Sidebar({
   onRenameFolder,
   onDeleteFolder,
   copiedNoteId,
+  onRenamePdf,
+  onDeletePdf,
+  onCopyPdf,
+  onPastePdf,
+  onMovePdfToFolder,
+  copiedPdfId,
 }) {
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [collapsed, setCollapsed] = useState(false);
@@ -114,7 +122,7 @@ export default function Sidebar({
         <div className="sidebar-inner">
           <div className="sidebar-header">
             <div className="sidebar-logo-container">
-              <div className="sidebar-logo-icon">📚</div>
+              <img src="/NexoNote Logo 2.png" alt="NexoNote" className="sidebar-logo-icon" />
               {!collapsed && <h1 className="sidebar-logo-text">NexoNote</h1>}
             </div>
           </div>
@@ -160,6 +168,7 @@ export default function Sidebar({
           {!collapsed ? (
             <SidebarTree
               notes={notes}
+              pdfs={pdfs}
               folders={folders}
               currentNoteId={currentNoteId}
               selectedFolderId={selectedFolderId}
@@ -168,6 +177,7 @@ export default function Sidebar({
               onToggleFolder={toggleFolder}
               onSelectNote={onSelectNote}
               onSelectFolder={onSelectFolder}
+              onOpenInTab={onOpenInTab}
               onCreateNote={onCreateNote}
               onCreateFolder={onCreateFolder}
               onRenameNote={onRenameNote}
@@ -178,6 +188,12 @@ export default function Sidebar({
               onRenameFolder={onRenameFolder}
               onDeleteFolder={onDeleteFolder}
               copiedNoteId={copiedNoteId}
+              onRenamePdf={onRenamePdf}
+              onDeletePdf={onDeletePdf}
+              onCopyPdf={onCopyPdf}
+              onPastePdf={onPastePdf}
+              onMovePdfToFolder={onMovePdfToFolder}
+              copiedPdfId={copiedPdfId}
             />
           ) : null}
 

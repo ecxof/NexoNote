@@ -107,6 +107,11 @@ button:hover {
   transform: translateY(-2px);
 }
 
+/* Floating toolbar: no hover lift so it stays anchored during scroll */
+.rich-text-editor-selection-toolbar button:hover {
+  transform: none;
+}
+
 button:active {
   transform: translateY(0);
 }
@@ -114,4 +119,25 @@ button:active {
 button:focus-visible {
   outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
+}
+
+/* Light theme */
+[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-sidebar: #f1f5f9;
+  --accent-primary: #2563eb;
+  --accent-hover: #1d4ed8;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --border-color: #e2e8f0;
+  --color-green: #15803d;
+  --color-blue: #0369a1;
+  --color-red: #b91c1c;
+  --color-purple: #6d28d9;
+  --color-yellow: #a16207;
+  --color-muted: #e2e8f0;
+  --sidebar-active-bg: #e2e8f0;
+  color-scheme: light;
 }
