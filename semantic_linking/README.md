@@ -20,8 +20,8 @@ This package implements **semantic linking** for NexoNote: it analyzes note cont
 # From project root
 pip install -r semantic_linking/requirements.txt
 
-# First run: download NLTK data (punkt, stopwords, wordnet)
-python -m nltk.downloader punkt stopwords wordnet
+# First run: download NLTK data (punkt, punkt_tab, stopwords, wordnet, omw-1.4)
+python -m nltk.downloader punkt punkt_tab stopwords wordnet omw-1.4
 ```
 
 ## Usage
@@ -50,7 +50,7 @@ Start the Python HTTP server so the React app can request related notes:
 ```bash
 # From project root, in a separate terminal
 pip install -r semantic_linking/requirements.txt
-python -m nltk.downloader punkt stopwords wordnet   # first time only
+python -m nltk.downloader punkt punkt_tab stopwords wordnet omw-1.4   # first time only
 python -m semantic_linking.server
 ```
 
