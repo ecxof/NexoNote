@@ -51,23 +51,12 @@ It focuses on:
 
 - Build feature-by-feature (vertical slices)
 - Prefer simple, explicit implementations
-- No premature AI or semantic features
 - Offline-first
 - Keep logic readable for students
 - No changes to `src/` files needed when modifying the storage backend
 
-## My Responsibility
-
-I am responsible for:
-
-- Rich text editor ✅
-- File management ✅
-- Settings ✅
-- PDF import/view/export ✅
-- SQLite migration ✅
 
 ## Expectations from Claude
 
 - Explain decisions before coding
 - Ask before large refactors
-- Prefer small commits / steps
