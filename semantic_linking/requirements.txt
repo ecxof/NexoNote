@@ -1,0 +1,7 @@
+# NexoNote Semantic Linking – Python backend
+# Install: pip install -r semantic_linking/requirements.txt
+# Optional: python -m nltk.downloader punkt stopwords wordnet
+
+scikit-learn>=1.3.0
+nltk>=3.8.0
+flask>=3.0.0

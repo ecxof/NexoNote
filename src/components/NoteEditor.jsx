@@ -24,7 +24,7 @@ function getFolderPathBreadcrumb(folderId, folders) {
   return [{ id: null, name: 'All' }, ...path];
 }
 
-export default function NoteEditor({ note, folders = [], onNavigateToFolder, onDeleted, onSaved, autoSave = true, fontSize = 'medium', flushSaveRef, editorScrollRef }) {
+export default function NoteEditor({ note, folders = [], onNavigateToFolder, onDeleted, onSaved, autoSave = true, fontSize = 'medium', flushSaveRef, editorScrollRef, onSemanticLinkClick }) {
   const [title, setTitle] = useState(note?.title ?? '');
   const [content, setContent] = useState(note?.content ?? '');
   const [status, setStatus] = useState(''); // 'saving' | 'saved' | 'error' | ''
@@ -161,6 +161,7 @@ export default function NoteEditor({ note, folders = [], onNavigateToFolder, onD
         initialContent={note.content ?? ''}
         onContentChange={(html) => setContent(html)}
         fontSize={fontSize}
+        onSemanticLinkClick={onSemanticLinkClick}
       />
     </div>
   );
