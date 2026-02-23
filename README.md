@@ -74,6 +74,7 @@ NexoNote/
 │   ├── preload.cjs              # contextBridge API
 │   ├── database.cjs             # SQLite schema, CRUD, migration
 │   └── test-database.cjs        # Database smoke tests
+├── semantic_linking/            # Python backend: semantic note linking (TF-IDF + cosine similarity)
 ├── src/
 │   ├── components/              # 18 React components
 │   │   ├── Dashboard.jsx        # Home view
@@ -327,8 +328,9 @@ For questions or issues:
 - SQLite database backend
 - JSON-to-SQLite migration
 
-### Phase 3: Intelligence (Next)
-- Semantic graph / knowledge linking
+### Phase 3: Intelligence (In Progress)
+- **Semantic linking** – Python backend (`semantic_linking/`) finds conceptually related notes (TF-IDF + cosine similarity). See `semantic_linking/README.md`.
+- Semantic graph / knowledge linking (UI)
 - AI-assisted "Explain This" for selected text
 - Flashcard generation and review
 
@@ -338,7 +340,7 @@ For questions or issues:
 - Performance optimization
 
 ### Phase 5: Analytics
-- Python ML backend integration
+- Python ML backend integration (semantic linking already in `semantic_linking/`)
 - Study pattern analysis
 - Personalized recommendations
 
@@ -351,7 +353,7 @@ For questions or issues:
 - [Modern CSS](https://developer.mozilla.org/en-US/docs/Web/CSS) - Styling
 - [Electron](https://www.electronjs.org/) - Desktop Integration (Coming)
 - [SQLite](https://www.sqlite.org/) - Database (Coming)
-- [Python](https://www.python.org/) - ML Backend (Coming)
+- [Python](https://www.python.org/) - Semantic linking backend (scikit-learn, NLTK) in `semantic_linking/`
 
 ---
 
