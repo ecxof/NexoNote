@@ -84,6 +84,7 @@ Welcome to NexoNote! Use this index to find the right documentation for your nee
 | [STYLING_GUIDELINES.md](./STYLING_GUIDELINES.md) | CSS guide | 15 min | Component creators |
 | [COLOR_AND_STYLE_REFERENCE.md](./COLOR_AND_STYLE_REFERENCE.md) | Visual reference | 10 min | Designers |
 | [CLAUDE.md](./CLAUDE.md) | AI assistant context and project rules | 3 min | AI / Contributors |
+| [SEMANTIC_LINKING.md](./SEMANTIC_LINKING.md) | Semantic linking backend (Python) | 5 min | Backend / ML |
 | [SETUP_CHECKLIST.md](./SETUP_CHECKLIST.md) | Verification | 5 min | QA/Verification |
 | **This File** | Navigation | 5 min | You right now! |
 
@@ -146,6 +147,9 @@ Welcome to NexoNote! Use this index to find the right documentation for your nee
 
 #### Integrate Electron?
 👉 [ARCHITECTURE.md](./ARCHITECTURE.md) - "Future Integration Points"
+
+#### Set up or use the semantic linking backend?
+👉 [SEMANTIC_LINKING.md](./SEMANTIC_LINKING.md) and [semantic_linking/README.md](./semantic_linking/README.md)
 
 #### Know what's implemented?
 👉 [SETUP_CHECKLIST.md](./SETUP_CHECKLIST.md) - "Features" section

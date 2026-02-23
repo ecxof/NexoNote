@@ -9,7 +9,7 @@ It focuses on:
 - Local file-based note storage (localStorage in browser, SQLite in Electron)
 - PDF import, viewing, and management
 - File/folder organization with nested hierarchy
-- Semantic linking (later phase)
+- Semantic linking (Python backend: TF-IDF + cosine similarity)
 - AI-assisted explanations (later phase)
 
 ## Current State
@@ -26,6 +26,7 @@ It focuses on:
 - Note view with left sidebar (tags, contents outline) and right sidebar (AI placeholder, flashcard placeholder)
 - SQLite database backend for Electron mode (feature/sqlite-migration branch)
 - localStorage fallback for browser dev mode
+- Semantic linking backend: Python package `semantic_linking/` (scikit-learn + NLTK), consumes `notes.content` (HTML)
 
 ## Tech Stack
 
@@ -44,28 +45,18 @@ It focuses on:
 - `electron/` – Electron main process, preload, SQLite database module
 - `src/services/` – Data access layer with `hasElectron()` pattern (IPC when Electron, localStorage when browser)
 - `electron/database.cjs` – SQLite schema, CRUD queries, JSON-to-SQLite migration
+- `semantic_linking/` – Python package for semantic linking (HTML → TF-IDF → cosine similarity; see `semantic_linking/README.md`)
 
 ## Development Rules
 
 - Build feature-by-feature (vertical slices)
 - Prefer simple, explicit implementations
-- No premature AI or semantic features
 - Offline-first
 - Keep logic readable for students
 - No changes to `src/` files needed when modifying the storage backend
 
-## My Responsibility
-
-I am responsible for:
-
-- Rich text editor ✅
-- File management ✅
-- Settings ✅
-- PDF import/view/export ✅
-- SQLite migration ✅
 
 ## Expectations from Claude
 
 - Explain decisions before coding
 - Ask before large refactors
-- Prefer small commits / steps
