@@ -93,6 +93,12 @@ NexoNote/
 │   ├── database.cjs           # SQLite init, schema, CRUD, JSON migration
 │   └── test-database.cjs      # Smoke tests for database module
 │
+├── semantic_linking/          # Python backend: semantic note linking
+│   ├── __init__.py            # Exposes find_semantic_links()
+│   ├── pipeline.py            # HTML strip, preprocessing, TF-IDF, cosine similarity
+│   ├── requirements.txt       # scikit-learn, nltk
+│   └── README.md              # Setup, usage, integration notes
+│
 ├── src/
 │   ├── main.jsx               # React entry point
 │   ├── App.jsx                # Root component, global state, handlers
@@ -191,6 +197,7 @@ All global state lives in `App.jsx`:
 | Desktop Shell| Electron             | 33.x     |
 | Rich Text    | TipTap (StarterKit)  | 3.19.0   |
 | Database     | better-sqlite3       | 12.x     |
+| Semantic Linking | Python (scikit-learn, NLTK) | see semantic_linking/README.md |
 | Icons        | Lucide React         | 0.563.0  |
 | IDs          | nanoid               | 5.x      |
 
@@ -207,6 +214,6 @@ All global state lives in `App.jsx`:
 
 ---
 
-**Architecture Version**: 2.0
-**Last Updated**: February 14, 2026
-**Status**: Rich text editor, file management, settings, PDF support, and SQLite migration complete
+**Architecture Version**: 2.1
+**Last Updated**: February 2026
+**Status**: Rich text editor, file management, settings, PDF support, SQLite migration, and semantic linking Python backend complete

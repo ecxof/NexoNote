@@ -520,6 +520,7 @@ function App() {
       <MainContent
         view={view}
         notes={notes}
+        allNotesForLinking={notes}
         folderNotes={folderNotes}
         pdfs={pdfs}
         currentNoteId={currentNoteId}
@@ -566,7 +567,6 @@ function App() {
         onTagsChange={handleTagsChange}
         onExploreSemanticMap={handleExploreSemanticMap}
         onBackFromSemanticMap={handleBackFromSemanticMap}
-        notes={notes}
       />
     </div>
     </ItemMenuProvider>

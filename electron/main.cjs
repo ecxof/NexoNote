@@ -7,6 +7,7 @@
  */
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const { spawn } = require('child_process');
 const database = require('./database.cjs');
 
 const isDev = process.env.NODE_ENV !== 'production' || !app.isPackaged;
@@ -119,4 +120,40 @@ ipcMain.handle('settings:get', () => {
 
 ipcMain.handle('settings:set', (_, settings) => {
   return database.settingsSet(settings);
+});
+
+// ─── Semantic linking (Python CLI) ──────────────────────────────────────────
+
+ipcMain.handle('semantic-links:find', async (_, payload) => {
+  const projectRoot = app.getAppPath();
+  const cliPath = path.join(projectRoot, 'semantic_linking', 'cli.py');
+  const input = JSON.stringify({
+    target_content: payload.target_content ?? '',
+    notes: payload.notes ?? [],
+    threshold: payload.threshold ?? 0.25,
+    max_results: payload.max_results ?? 50,
+  });
+  return new Promise((resolve) => {
+    const proc = spawn('python', [cliPath], {
+      cwd: projectRoot,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', (chunk) => { stdout += chunk; });
+    proc.stderr.on('data', (chunk) => { stderr += chunk; });
+    proc.on('error', (err) => {
+      resolve({ error: err.message || 'Failed to run Python' });
+    });
+    proc.on('close', (code) => {
+      try {
+        const data = JSON.parse(stdout || '{}');
+        if (data.error) resolve({ error: data.error });
+        else resolve({ links: data.links ?? [] });
+      } catch {
+        resolve({ error: stderr || stdout || (code !== 0 ? `Exit ${code}` : 'Invalid response') });
+      }
+    });
+    proc.stdin.write(input, () => proc.stdin.end());
+  });
 });

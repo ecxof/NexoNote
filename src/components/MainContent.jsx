@@ -8,6 +8,7 @@ import FolderView from './FolderView';
 import NoteEditor from './NoteEditor';
 import NoteViewSidebar from './NoteViewSidebar';
 import NoteViewRightSidebar from './NoteViewRightSidebar';
+import SemanticGraphView from './SemanticGraphView';
 import Settings from './Settings';
 import TabBar from './TabBar';
 import EmptyTabView from './EmptyTabView';
@@ -24,6 +25,7 @@ const RESIZE_HANDLE_WIDTH = 4;
 export default function MainContent({
   view,
   notes,
+  allNotesForLinking,
   folderNotes,
   pdfs,
   currentNoteId,
@@ -132,20 +134,21 @@ export default function MainContent({
   }
 
   if (view === 'semantic-map') {
+    // Resolve the note from the active tab (the tab-based system doesn't set
+    // currentNoteId, so currentNote from props is usually null here).
+    const activeTab = tabs.find((t) => t.id === activeTabId);
+    const graphNote =
+      activeTab?.type === 'note' && activeTab?.resourceId
+        ? notes.find((n) => n.id === activeTab.resourceId) ?? currentNote
+        : currentNote;
     return (
       <main className="main-content main-content-semantic-map">
-        <div className="semantic-map-screen">
-          <button
-            type="button"
-            className="semantic-map-back"
-            onClick={onBackFromSemanticMap}
-            aria-label="Back to note"
-          >
-            <ArrowLeft size={20} />
-            Back to note
-          </button>
-          <p className="semantic-map-placeholder">Semantic map (coming later).</p>
-        </div>
+        <SemanticGraphView
+          note={graphNote}
+          notes={allNotesForLinking ?? notes}
+          onClose={onBackFromSemanticMap}
+          onOpenInTab={onOpenInTab}
+        />
       </main>
     );
   }
@@ -167,6 +170,7 @@ export default function MainContent({
         currentPdf={currentPdfForTab}
         folders={folders}
         notes={notes}
+        allNotesForLinking={allNotesForLinking ?? notes}
         noteViewSidebarOpen={noteViewSidebarOpen}
         onNoteViewSidebarOpenChange={onNoteViewSidebarOpenChange}
         noteViewRightSidebarOpen={noteViewRightSidebarOpen}
@@ -185,6 +189,7 @@ export default function MainContent({
         onTabClick={onTabClick}
         onTabClose={onTabClose}
         onAddEmptyTab={onAddEmptyTab}
+        onOpenInTab={onOpenInTab}
       />
     );
   }
@@ -233,8 +238,11 @@ function WorkspaceLayout({
   onTabClick,
   onTabClose,
   onAddEmptyTab,
+  onOpenInTab,
+  allNotesForLinking,
 }) {
   const [sidebarWidth, setSidebarWidth] = useState(NOTE_VIEW_SIDEBAR_DEFAULT);
+  const notesForLinking = allNotesForLinking ?? notes;
   const [rightSidebarWidth, setRightSidebarWidth] = useState(NOTE_VIEW_RIGHT_SIDEBAR_DEFAULT);
   const [isDragging, setIsDragging] = useState(false);
   const [isRightDragging, setIsRightDragging] = useState(false);
@@ -309,12 +317,16 @@ function WorkspaceLayout({
         >
           <NoteViewSidebar
             note={activeTab?.type === 'note' ? currentNote : null}
+            notes={notesForLinking}
             allTags={allTags}
             onBack={onBackToDashboard}
             onCollapse={() => onNoteViewSidebarOpenChange(false)}
             onTagsChange={onTagsChange}
             onExploreSemanticMap={onExploreSemanticMap}
             onHeadingClick={(index) => editorScrollRef?.current?.scrollToHeadingIndex(index)}
+            onOpenInTab={onOpenInTab}
+            onSemanticLinksReady={(links) => editorScrollRef?.current?.applySemanticLinks(links)}
+            onSemanticLinksClear={() => editorScrollRef?.current?.clearSemanticLinks()}
           />
         </div>
         {noteViewSidebarOpen && (
@@ -357,6 +369,7 @@ function WorkspaceLayout({
                   fontSize={settings.fontSize}
                   flushSaveRef={editorFlushSaveRef}
                   editorScrollRef={editorScrollRef}
+                  onSemanticLinkClick={(noteId) => onOpenInTab?.({ type: 'note', id: noteId })}
                 />
               ) : activeTab.type === 'pdf' && currentPdf ? (
                 <PDFViewer

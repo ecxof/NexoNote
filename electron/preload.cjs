@@ -29,4 +29,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (settings) => ipcRenderer.invoke('settings:set', settings),
   },
+  semanticLinks: {
+    find: (payload) => ipcRenderer.invoke('semantic-links:find', payload),
+  },
 });
