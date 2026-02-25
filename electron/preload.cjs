@@ -5,6 +5,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  getBackendUrl: () => ipcRenderer.invoke('backend:getBaseUrl'),
   notes: {
     getAll: () => ipcRenderer.invoke('notes:getAll'),
     getById: (id) => ipcRenderer.invoke('notes:getById', id),
@@ -24,6 +25,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     add: (filePath, title, folderId) => ipcRenderer.invoke('pdfs:add', filePath, title, folderId),
     update: (id, payload) => ipcRenderer.invoke('pdfs:update', id, payload),
     remove: (id) => ipcRenderer.invoke('pdfs:remove', id),
+  },
+  flashcards: {
+    getAll: (filters) => ipcRenderer.invoke('flashcards:getAll', filters),
+    getLibrary: () => ipcRenderer.invoke('flashcards:getLibrary'),
+    getById: (id) => ipcRenderer.invoke('flashcards:getById', id),
+    create: (payload) => ipcRenderer.invoke('flashcards:create', payload),
+    update: (id, payload) => ipcRenderer.invoke('flashcards:update', id, payload),
+    delete: (id) => ipcRenderer.invoke('flashcards:delete', id),
+    getDue: (filters) => ipcRenderer.invoke('flashcards:getDue', filters),
+    review: (id, rating, reviewedAt, reviewMeta) => ipcRenderer.invoke('flashcards:review', id, rating, reviewedAt, reviewMeta),
+    getPerformanceAnalytics: (filters) => ipcRenderer.invoke('flashcards:getPerformanceAnalytics', filters),
   },
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),

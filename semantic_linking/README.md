@@ -9,7 +9,7 @@ This package implements **semantic linking** for NexoNote: it analyzes note cont
 ## Pipeline (overview)
 
 1. **Text extraction & cleaning** – Strip HTML tags, tokenize, lowercase.
-2. **Preprocessing** – Remove standard English stop words and a custom *domain stop word* list (e.g. "note", "summary", "exam", "page", "conclusion") so links are based on domain concepts. Lemmatization reduces words to base form.
+2. **Preprocessing** – Remove standard English stop words and a custom _domain stop word_ list (e.g. "note", "summary", "exam", "page", "conclusion") so links are based on domain concepts. Lemmatization reduces words to base form.
 3. **Vectorization** – `TfidfVectorizer` with `max_df=0.85` and `min_df=1` so terms that appear in too many notes are downweighted or ignored.
 4. **Similarity** – Cosine similarity between the target note and all candidate notes.
 5. **Output** – `find_semantic_links(target_note_text, existing_notes_dict, threshold=0.25)` returns a list of `{"note_id", "score"}` for notes above the threshold.
@@ -20,8 +20,8 @@ This package implements **semantic linking** for NexoNote: it analyzes note cont
 # From project root
 pip install -r semantic_linking/requirements.txt
 
-# First run: download NLTK data (punkt, punkt_tab, stopwords, wordnet, omw-1.4)
-python -m nltk.downloader punkt punkt_tab stopwords wordnet omw-1.4
+# First run: download NLTK data (punkt, stopwords, wordnet)
+python -m nltk.downloader punkt stopwords wordnet
 ```
 
 ## Usage
@@ -50,7 +50,7 @@ Start the Python HTTP server so the React app can request related notes:
 ```bash
 # From project root, in a separate terminal
 pip install -r semantic_linking/requirements.txt
-python -m nltk.downloader punkt punkt_tab stopwords wordnet omw-1.4   # first time only
+python -m nltk.downloader punkt stopwords wordnet   # first time only
 python -m semantic_linking.server
 ```
 

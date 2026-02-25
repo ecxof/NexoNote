@@ -3,7 +3,15 @@
  * Width and collapsed state persist across sessions.
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Home, Folder, Settings, PanelLeftClose, PanelLeft } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Folder,
+  Settings,
+  PanelLeftClose,
+  PanelLeft,
+  BookOpenText,
+  ChartColumnIncreasing,
+} from 'lucide-react';
 import SidebarTree from './SidebarTree';
 import { getSettings, updateSettings } from '../services/settingsService';
 
@@ -134,10 +142,32 @@ export default function Sidebar({
                   type="button"
                   className={`sidebar-menu-link sidebar-link-pill ${view === 'dashboard' ? 'active' : ''}`}
                   onClick={() => setView('dashboard')}
-                  title="Home"
+                  title="Dashboard"
                 >
-                  <Home size={20} className="menu-icon" />
-                  {!collapsed && <span className="menu-label">Home</span>}
+                  <LayoutDashboard size={20} className="menu-icon" />
+                  {!collapsed && <span className="menu-label">Dashboard</span>}
+                </button>
+              </li>
+              <li className="sidebar-menu-item">
+                <button
+                  type="button"
+                  className={`sidebar-menu-link sidebar-link-pill ${view === 'flashcards' || view === 'flashcard-review' ? 'active' : ''}`}
+                  onClick={() => setView('flashcards')}
+                  title="Flashcards"
+                >
+                  <BookOpenText size={20} className="menu-icon" />
+                  {!collapsed && <span className="menu-label">Flashcards</span>}
+                </button>
+              </li>
+              <li className="sidebar-menu-item">
+                <button
+                  type="button"
+                  className={`sidebar-menu-link sidebar-link-pill ${view === 'performance-analytics' ? 'active' : ''}`}
+                  onClick={() => setView('performance-analytics')}
+                  title="Performance Analytics"
+                >
+                  <ChartColumnIncreasing size={20} className="menu-icon" />
+                  {!collapsed && <span className="menu-label">Performance Analytics</span>}
                 </button>
               </li>
               <li className="sidebar-menu-item">

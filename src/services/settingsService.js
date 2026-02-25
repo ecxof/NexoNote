@@ -1,7 +1,9 @@
 /**
  * Settings service: read/write app settings (auto-save, font size).
- * Uses Electron IPC when available, otherwise localStorage.
+ * Uses Python backend HTTP when URL set, else Electron IPC, else localStorage.
  */
+
+import { getBackendClient } from '../apiClient';
 
 const STORAGE_KEY = 'nexonote_settings';
 const DEFAULTS = {
@@ -18,6 +20,11 @@ function hasElectron() {
 
 /** @returns {Promise<{ autoSave: boolean, fontSize: string, theme: string, sidebarWidth: number, sidebarCollapsed: boolean }>} */
 export async function getSettings() {
+  const backend = await getBackendClient();
+  if (backend) {
+    const raw = await backend.settings.get();
+    return { ...DEFAULTS, ...raw };
+  }
   if (hasElectron()) {
     const raw = await window.electronAPI.settings.get();
     return { ...DEFAULTS, ...raw };
@@ -36,6 +43,10 @@ export async function getSettings() {
  * @returns {Promise<{ autoSave: boolean, fontSize: string, theme: string }>}
  */
 export async function updateSettings(partial) {
+  const backend = await getBackendClient();
+  if (backend) {
+    return backend.settings.set(partial);
+  }
   if (hasElectron()) {
     return window.electronAPI.settings.set(partial);
   }

@@ -19,6 +19,8 @@ NexoNote is a desktop note-taking and study companion built with Electron and Re
 - 🗄️ **SQLite Storage** - Local database in Electron mode; localStorage fallback in browser
 - 🌗 **Dark & Light Themes** - Configurable via Settings, applies instantly
 - 🔐 **Offline-First** - All data stored locally, no cloud required
+- 🔗 **Semantic Linking** - Related notes (TF-IDF), in-editor keyword highlights, and a force-directed semantic graph. See [semantic_linking/README.md](semantic_linking/README.md) for setup.
+- 🤖 **AI Assistant** - In-note chat with Explain This, Summarize, and Quiz Me (Hugging Face). Copy `.env.example` to `.env` and set `VITE_HF_API_TOKEN` to your [Hugging Face token](https://huggingface.co/settings/tokens).
 
 ---
 
@@ -74,7 +76,6 @@ NexoNote/
 │   ├── preload.cjs              # contextBridge API
 │   ├── database.cjs             # SQLite schema, CRUD, migration
 │   └── test-database.cjs        # Database smoke tests
-├── semantic_linking/            # Python backend: semantic note linking (TF-IDF + cosine similarity)
 ├── src/
 │   ├── components/              # 18 React components
 │   │   ├── Dashboard.jsx        # Home view
@@ -328,9 +329,8 @@ For questions or issues:
 - SQLite database backend
 - JSON-to-SQLite migration
 
-### Phase 3: Intelligence (In Progress)
-- **Semantic linking** – Python backend (`semantic_linking/`) finds conceptually related notes (TF-IDF + cosine similarity). See `semantic_linking/README.md`.
-- Semantic graph / knowledge linking (UI)
+### Phase 3: Intelligence (Next)
+- Semantic graph / knowledge linking
 - AI-assisted "Explain This" for selected text
 - Flashcard generation and review
 
@@ -340,7 +340,7 @@ For questions or issues:
 - Performance optimization
 
 ### Phase 5: Analytics
-- Python ML backend integration (semantic linking already in `semantic_linking/`)
+- Python ML backend integration
 - Study pattern analysis
 - Personalized recommendations
 
@@ -353,7 +353,7 @@ For questions or issues:
 - [Modern CSS](https://developer.mozilla.org/en-US/docs/Web/CSS) - Styling
 - [Electron](https://www.electronjs.org/) - Desktop Integration (Coming)
 - [SQLite](https://www.sqlite.org/) - Database (Coming)
-- [Python](https://www.python.org/) - Semantic linking backend (scikit-learn, NLTK) in `semantic_linking/`
+- [Python](https://www.python.org/) - ML Backend (Coming)
 
 ---
 

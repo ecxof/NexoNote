@@ -4,6 +4,8 @@
  */
 import { Plus, Upload, BookOpen, ArrowRight } from 'lucide-react';
 import { NoteItemMenu } from './ItemMenu';
+import { useEffect, useState } from 'react';
+import { getDueFlashcards } from '../services/flashcardService';
 
 function formatDate(date) {
   if (!date) return '';
@@ -49,7 +51,22 @@ export default function Dashboard({
   onMoveNoteToFolder,
   copiedNoteId,
   folders,
+  refreshKey = 0,
+  onStartReviewSession,
 }) {
+  const [dueCount, setDueCount] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const due = await getDueFlashcards({});
+      if (mounted) setDueCount(due.length);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [refreshKey]);
+
   const recentNotes = [...(notes || [])].sort((a, b) => {
     const ta = a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt);
     const tb = b.updatedAt instanceof Date ? b.updatedAt : new Date(b.updatedAt);
@@ -82,10 +99,14 @@ export default function Dashboard({
           <BookOpen size={48} className="hero-icon" />
           <div className="hero-content">
             <h2 className="hero-title">Review Flashcards</h2>
-            <p className="hero-subtitle">You have 0 cards due for review today.</p>
+            <p className="hero-subtitle">You have {dueCount} cards due for review today.</p>
           </div>
         </div>
-        <button type="button" className="btn-hero">
+        <button
+          type="button"
+          className="btn-hero"
+          onClick={() => onStartReviewSession?.({ dueOnly: true })}
+        >
           Start Session
           <ArrowRight size={18} />
         </button>

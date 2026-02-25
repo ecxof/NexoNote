@@ -44,7 +44,6 @@ import {
   ListTodo,
   ImagePlus,
   Upload,
-  Sparkles,
   ChevronDown,
 } from 'lucide-react';
 
@@ -60,6 +59,7 @@ const extensions = [
   StarterKit.configure({
     heading: { levels: [1, 2, 3, 4] },
     link: false,
+    // Disable underline if StarterKit includes it to avoid duplicate
     underline: false,
   }),
   Underline,
@@ -129,6 +129,23 @@ const RichTextEditor = forwardRef(function RichTextEditor({
   const [selectionToolbar, setSelectionToolbar] = useState({ show: false, top: 0, left: 0 });
   const [lastHighlightColor, setLastHighlightColor] = useState(HIGHLIGHT_COLORS[0]?.value ?? '#6FB38A');
   const contentRef = useRef(null);
+  const onSemanticLinkClickRef = useRef(onSemanticLinkClick);
+  useEffect(() => { onSemanticLinkClickRef.current = onSemanticLinkClick; }, [onSemanticLinkClick]);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const handler = (e) => {
+      const span = e.target.closest('span[data-note-id]');
+      if (!span) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const noteId = span.getAttribute('data-note-id');
+      if (noteId) onSemanticLinkClickRef.current?.(noteId);
+    };
+    el.addEventListener('click', handler);
+    return () => el.removeEventListener('click', handler);
+  }, []);
 
   const updateSelectionToolbar = useCallback(() => {
     if (!editor) return;
@@ -165,25 +182,6 @@ const RichTextEditor = forwardRef(function RichTextEditor({
     return () => el.removeEventListener('scroll', onScroll, true);
   }, [editor, selectionToolbar.show, updateSelectionToolbar]);
 
-  // Click delegation for semantic-link spans (event bubbles up from editor DOM).
-  const onSemanticLinkClickRef = useRef(onSemanticLinkClick);
-  useEffect(() => { onSemanticLinkClickRef.current = onSemanticLinkClick; }, [onSemanticLinkClick]);
-
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    const handler = (e) => {
-      const span = e.target.closest('span[data-note-id]');
-      if (!span) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const noteId = span.getAttribute('data-note-id');
-      if (noteId) onSemanticLinkClickRef.current?.(noteId);
-    };
-    el.addEventListener('click', handler);
-    return () => el.removeEventListener('click', handler);
-  }, []);
-
   useImperativeHandle(ref, () => ({
     scrollToHeadingIndex(index) {
       if (!editor) return;
@@ -201,7 +199,6 @@ const RichTextEditor = forwardRef(function RichTextEditor({
     applySemanticLinks(links) {
       if (!editor) return;
 
-      // 1. Remove all existing semantic link marks first.
       editor.chain().focus().selectAll().unsetMark('semanticLink').run();
       editor.commands.setTextSelection({ from: 0, to: 0 });
 
@@ -210,13 +207,11 @@ const RichTextEditor = forwardRef(function RichTextEditor({
       const { state } = editor;
       const { doc } = state;
 
-      // 2. Collect all text positions in the document.
       const textRanges = [];
       doc.descendants((node, pos) => {
         if (node.isText) textRanges.push({ text: node.text, pos });
       });
 
-      // 3. Build flat list of (keyword, noteId) pairs.
       const targets = [];
       for (const link of links) {
         const nid = link.linked_note_id ?? link.note_id;
@@ -225,7 +220,6 @@ const RichTextEditor = forwardRef(function RichTextEditor({
         }
       }
 
-      // 4. For each text node, find keyword occurrences and apply the mark.
       const chain = editor.chain();
       for (const { text, pos } of textRanges) {
         const lower = text.toLowerCase();
@@ -235,7 +229,6 @@ const RichTextEditor = forwardRef(function RichTextEditor({
           while (searchFrom < lower.length) {
             const idx = lower.indexOf(keyword, searchFrom);
             if (idx === -1) break;
-            // Word-boundary check: don't highlight inside longer words.
             const before = idx === 0 ? '' : lower[idx - 1];
             const after = idx + keyword.length >= lower.length ? '' : lower[idx + keyword.length];
             const isBoundaryBefore = !before || /[^a-z0-9]/.test(before);
@@ -406,16 +399,6 @@ function SelectionFloatingToolbar({ editor, top, left, lastHighlightColor, onHig
             </>
           )}
         </div>
-        <span className="rich-text-editor-selection-toolbar-sep" aria-hidden />
-        <button
-          type="button"
-          className="rich-text-editor-selection-toolbar-btn rich-text-editor-selection-toolbar-btn-ai"
-          title="Explain This"
-          aria-label="Explain This"
-        >
-          <Sparkles size={17} strokeWidth={2} />
-          <span className="rich-text-editor-selection-toolbar-btn-ai-label">Explain This</span>
-        </button>
       </div>
     </div>
   );
