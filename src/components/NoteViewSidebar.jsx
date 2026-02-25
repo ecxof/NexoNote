@@ -41,7 +41,6 @@ export default function NoteViewSidebar({
   const [relatedLoading, setRelatedLoading] = useState(false);
   const [relatedError, setRelatedError] = useState(null);
 
-  // All notes except current – covers every folder (and no folder).
   const otherNotes = useMemo(
     () => (notes || []).filter((n) => n.id !== note?.id),
     [notes, note?.id],
@@ -496,63 +495,56 @@ export default function NoteViewSidebar({
             )}
           </div>
         </section>
-        <section className="note-view-sidebar-section">
+        <section className="note-view-sidebar-section note-view-sidebar-related">
           <h3 className="note-view-sidebar-section-title">
             <Link2 size={16} />
             Related notes
           </h3>
-          <div className="note-view-sidebar-related">
-            {relatedLoading && (
-              <p className="note-view-sidebar-placeholder note-view-sidebar-related-loading">
-                <Loader2 size={14} className="note-view-sidebar-related-spinner" aria-hidden />
-                Finding related notes…
-              </p>
-            )}
-            {!relatedLoading && relatedError && (
-              <p className="note-view-sidebar-placeholder note-view-sidebar-related-error" role="alert">
-                {relatedError}
-              </p>
-            )}
-            {!relatedLoading && !relatedError && otherNotes.length === 0 && (
-              <p className="note-view-sidebar-placeholder">No other notes to compare.</p>
-            )}
-            {!relatedLoading && !relatedError && relatedLinks.length === 0 && otherNotes.length > 0 && (
-              <p className="note-view-sidebar-placeholder">No related notes found.</p>
-            )}
-            {!relatedLoading && !relatedError && relatedLinks.length > 0 && (
-              <ul className="note-view-sidebar-related-list">
-                {relatedLinks.map((link) => {
-                  const nid = link.linked_note_id;
-                  const other = notes.find((n) => n.id === nid);
-                  const title = other?.title || 'Untitled';
-                  const score = link.similarity_score ?? 0;
+          {relatedLoading && (
+            <div className="note-view-sidebar-related-loading">
+              <Loader2 size={16} className="note-view-sidebar-related-spinner" aria-hidden />
+              <span className="note-view-sidebar-related-loading-text">Finding related notes…</span>
+            </div>
+          )}
+          {relatedError && !relatedLoading && (
+            <p className="note-view-sidebar-related-error" role="alert">{relatedError}</p>
+          )}
+          {!relatedLoading && !relatedError && (
+            <ul className="note-view-sidebar-related-list">
+              {relatedLinks.length === 0 ? (
+                <li className="note-view-sidebar-placeholder">No related notes found.</li>
+              ) : (
+                relatedLinks.map((link) => {
+                  const linkedId = link.linked_note_id ?? link.note_id;
+                  const linkedNote = (notes || []).find((n) => n.id === linkedId);
+                  const title = linkedNote?.title ?? 'Untitled';
+                  const score = link.similarity_score ?? link.score ?? 0;
                   const keywords = link.matched_keywords ?? [];
                   return (
-                    <li key={nid} className="note-view-sidebar-related-item">
+                    <li key={linkedId} className="note-view-sidebar-related-item">
                       <button
                         type="button"
                         className="note-view-sidebar-related-link"
-                        onClick={() => onOpenInTab?.({ type: 'note', id: nid })}
-                        title={`Open: ${title}`}
+                        onClick={() => onOpenInTab?.({ type: 'note', id: linkedId })}
                       >
                         <span className="note-view-sidebar-related-link-title">{title}</span>
-                        <span className="note-view-sidebar-related-link-score" aria-hidden>
+                        <span className="note-view-sidebar-related-link-score">
                           {Math.round(score * 100)}%
                         </span>
                       </button>
                       {keywords.length > 0 && (
-                        <div className="note-view-sidebar-related-keywords" aria-label="Matched keywords">
-                          {keywords.map((kw) => (
+                        <div className="note-view-sidebar-related-keywords">
+                          {keywords.slice(0, 5).map((kw) => (
                             <span key={kw} className="note-view-sidebar-related-keyword">{kw}</span>
                           ))}
                         </div>
                       )}
                     </li>
                   );
-                })}
-              </ul>
-            )}
-          </div>
+                })
+              )}
+            </ul>
+          )}
         </section>
         <section className="note-view-sidebar-section">
           <h3 className="note-view-sidebar-section-title">
@@ -560,7 +552,6 @@ export default function NoteViewSidebar({
             Semantic Graph
           </h3>
           <div className="note-view-sidebar-graph">
-            <p className="note-view-sidebar-placeholder">Graph view (coming later).</p>
             <button
               type="button"
               className="note-view-sidebar-explore-map"

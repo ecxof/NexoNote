@@ -8,11 +8,15 @@ import FolderView from './FolderView';
 import NoteEditor from './NoteEditor';
 import NoteViewSidebar from './NoteViewSidebar';
 import NoteViewRightSidebar from './NoteViewRightSidebar';
-import SemanticGraphView from './SemanticGraphView';
 import Settings from './Settings';
 import TabBar from './TabBar';
 import EmptyTabView from './EmptyTabView';
 import PDFViewer from './PDFViewer';
+import SemanticGraphView from './SemanticGraphView';
+import FlashcardsView from './FlashcardsView';
+import PerformanceAnalyticsView from './PerformanceAnalyticsView';
+import FlashcardManualModal from './FlashcardManualModal';
+import FlashcardReviewSession from './FlashcardReviewSession';
 
 const NOTE_VIEW_SIDEBAR_MIN = 200;
 const NOTE_VIEW_SIDEBAR_MAX = 420;
@@ -25,11 +29,8 @@ const RESIZE_HANDLE_WIDTH = 4;
 export default function MainContent({
   view,
   notes,
-  allNotesForLinking,
   folderNotes,
   pdfs,
-  currentNoteId,
-  currentNote,
   selectedFolder,
   folders,
   tabs,
@@ -72,6 +73,14 @@ export default function MainContent({
   onTagsChange,
   onExploreSemanticMap,
   onBackFromSemanticMap,
+  allNotesForLinking,
+  onSemanticLinksReady,
+  onSemanticLinksClear,
+  flashcardLibraryVersion = 0,
+  onFlashcardLibraryRefresh,
+  reviewSessionConfig = null,
+  onCloseReviewSession,
+  onStartReviewSession,
 }) {
   if (view === 'settings') {
     return (
@@ -95,6 +104,8 @@ export default function MainContent({
         onMoveNoteToFolder={onMoveNoteToFolder}
         copiedNoteId={copiedNoteId}
         folders={folders}
+        refreshKey={flashcardLibraryVersion}
+        onStartReviewSession={onStartReviewSession}
       />
     );
   }
@@ -133,14 +144,47 @@ export default function MainContent({
     );
   }
 
+  if (view === 'flashcards') {
+    return (
+      <main className="main-content">
+        <FlashcardsView
+          notes={notes}
+          refreshKey={flashcardLibraryVersion}
+          onStartReviewSession={onStartReviewSession}
+          onLibraryChanged={onFlashcardLibraryRefresh}
+        />
+      </main>
+    );
+  }
+
+  if (view === 'performance-analytics') {
+    return (
+      <main className="main-content">
+        <PerformanceAnalyticsView
+          refreshKey={flashcardLibraryVersion}
+          onStartReviewSession={onStartReviewSession}
+        />
+      </main>
+    );
+  }
+
+  if (view === 'flashcard-review') {
+    return (
+      <FlashcardReviewSession
+        noteId={reviewSessionConfig?.noteId || null}
+        topicId={reviewSessionConfig?.topicId || null}
+        type={reviewSessionConfig?.type || null}
+        dueOnly={reviewSessionConfig?.dueOnly !== false}
+        onClose={onCloseReviewSession}
+      />
+    );
+  }
+
   if (view === 'semantic-map') {
-    // Resolve the note from the active tab (the tab-based system doesn't set
-    // currentNoteId, so currentNote from props is usually null here).
     const activeTab = tabs.find((t) => t.id === activeTabId);
-    const graphNote =
-      activeTab?.type === 'note' && activeTab?.resourceId
-        ? notes.find((n) => n.id === activeTab.resourceId) ?? currentNote
-        : currentNote;
+    const graphNote = activeTab?.type === 'note' && activeTab?.resourceId
+      ? notes.find((n) => n.id === activeTab.resourceId) ?? null
+      : null;
     return (
       <main className="main-content main-content-semantic-map">
         <SemanticGraphView
@@ -170,7 +214,6 @@ export default function MainContent({
         currentPdf={currentPdfForTab}
         folders={folders}
         notes={notes}
-        allNotesForLinking={allNotesForLinking ?? notes}
         noteViewSidebarOpen={noteViewSidebarOpen}
         onNoteViewSidebarOpenChange={onNoteViewSidebarOpenChange}
         noteViewRightSidebarOpen={noteViewRightSidebarOpen}
@@ -179,6 +222,10 @@ export default function MainContent({
         onNavigateToFolder={onNavigateToFolder}
         onTagsChange={onTagsChange}
         onExploreSemanticMap={onExploreSemanticMap}
+        allNotesForLinking={allNotesForLinking ?? notes}
+        onSemanticLinksReady={onSemanticLinksReady}
+        onSemanticLinksClear={onSemanticLinksClear}
+        onOpenInTab={onOpenInTab}
         editorScrollRef={editorScrollRef}
         editorFlushSaveRef={editorFlushSaveRef}
         settings={settings}
@@ -189,7 +236,7 @@ export default function MainContent({
         onTabClick={onTabClick}
         onTabClose={onTabClose}
         onAddEmptyTab={onAddEmptyTab}
-        onOpenInTab={onOpenInTab}
+        onFlashcardLibraryRefresh={onFlashcardLibraryRefresh}
       />
     );
   }
@@ -208,6 +255,8 @@ export default function MainContent({
         onMoveNoteToFolder={onMoveNoteToFolder}
         copiedNoteId={copiedNoteId}
         folders={folders}
+        refreshKey={flashcardLibraryVersion}
+        onStartReviewSession={onStartReviewSession}
       />
     </main>
   );
@@ -228,6 +277,10 @@ function WorkspaceLayout({
   onNavigateToFolder,
   onTagsChange,
   onExploreSemanticMap,
+  allNotesForLinking,
+  onSemanticLinksReady,
+  onSemanticLinksClear,
+  onOpenInTab,
   editorScrollRef,
   editorFlushSaveRef,
   settings,
@@ -238,14 +291,13 @@ function WorkspaceLayout({
   onTabClick,
   onTabClose,
   onAddEmptyTab,
-  onOpenInTab,
-  allNotesForLinking,
+  onFlashcardLibraryRefresh,
 }) {
   const [sidebarWidth, setSidebarWidth] = useState(NOTE_VIEW_SIDEBAR_DEFAULT);
-  const notesForLinking = allNotesForLinking ?? notes;
   const [rightSidebarWidth, setRightSidebarWidth] = useState(NOTE_VIEW_RIGHT_SIDEBAR_DEFAULT);
   const [isDragging, setIsDragging] = useState(false);
   const [isRightDragging, setIsRightDragging] = useState(false);
+  const [manualModalNote, setManualModalNote] = useState(null);
   const startXRef = useRef(0);
   const startWidthRef = useRef(sidebarWidth);
   const startRightWidthRef = useRef(rightSidebarWidth);
@@ -317,7 +369,7 @@ function WorkspaceLayout({
         >
           <NoteViewSidebar
             note={activeTab?.type === 'note' ? currentNote : null}
-            notes={notesForLinking}
+            notes={allNotesForLinking ?? notes}
             allTags={allTags}
             onBack={onBackToDashboard}
             onCollapse={() => onNoteViewSidebarOpenChange(false)}
@@ -325,8 +377,8 @@ function WorkspaceLayout({
             onExploreSemanticMap={onExploreSemanticMap}
             onHeadingClick={(index) => editorScrollRef?.current?.scrollToHeadingIndex(index)}
             onOpenInTab={onOpenInTab}
-            onSemanticLinksReady={(links) => editorScrollRef?.current?.applySemanticLinks(links)}
-            onSemanticLinksClear={() => editorScrollRef?.current?.clearSemanticLinks()}
+            onSemanticLinksReady={onSemanticLinksReady}
+            onSemanticLinksClear={onSemanticLinksClear}
           />
         </div>
         {noteViewSidebarOpen && (
@@ -425,6 +477,10 @@ function WorkspaceLayout({
           <NoteViewRightSidebar
             note={activeTab?.type === 'note' ? currentNote : null}
             onCollapse={() => onNoteViewRightSidebarOpenChange(false)}
+            onManualCreateFlashcard={(note) => {
+              if (!note?.id) return;
+              setManualModalNote(note);
+            }}
             onExport={activeTab?.type === 'note' ? async () => {
               // Export note to PDF
               if (!currentNote) return;
@@ -510,6 +566,13 @@ function WorkspaceLayout({
           />
         </div>
       </div>
+      {manualModalNote && (
+        <FlashcardManualModal
+          note={manualModalNote}
+          onClose={() => setManualModalNote(null)}
+          onSaved={onFlashcardLibraryRefresh}
+        />
+      )}
     </main>
   );
 }

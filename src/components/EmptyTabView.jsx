@@ -17,7 +17,7 @@ export default function EmptyTabView({ onCreateNote, onImportPdf }) {
         </p>
         <div className="empty-tab-view-actions">
           {onCreateNote && (
-            <button type="button" className="btn-primary" onClick={onCreateNote}>
+            <button type="button" className="btn-primary" onClick={() => onCreateNote()}>
               <FileText size={18} />
               Create New Note
             </button>

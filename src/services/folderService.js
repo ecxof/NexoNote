@@ -1,7 +1,9 @@
 /**
- * Folder service: CRUD for folders. Uses Electron IPC or localStorage fallback.
+ * Folder service: CRUD for folders. Uses Python backend HTTP when URL set, else Electron IPC or localStorage.
  * Folder shape: { id, name, createdAt }.
  */
+
+import { getBackendClient } from '../apiClient';
 
 const STORAGE_KEY = 'nexonote_folders';
 
@@ -20,6 +22,11 @@ function toFolder(raw) {
 
 /** @returns {Promise<Folder[]>} */
 export async function getFolders() {
+  const backend = await getBackendClient();
+  if (backend) {
+    const list = await backend.folders.getAll();
+    return list.map(toFolder);
+  }
   if (hasElectron()) {
     const list = await window.electronAPI.folders.getAll();
     return list.map(toFolder);
@@ -35,6 +42,11 @@ export async function getFolders() {
 
 /** @param {string} [parentId] - parent folder id for nested folders. @returns {Promise<Folder>} */
 export async function createFolder(name, parentId = null) {
+  const backend = await getBackendClient();
+  if (backend) {
+    const raw = await backend.folders.create(name, parentId);
+    return toFolder(raw);
+  }
   if (hasElectron()) {
     const raw = await window.electronAPI.folders.create(name, parentId);
     return toFolder(raw);
@@ -54,6 +66,11 @@ export async function createFolder(name, parentId = null) {
  * @returns {Promise<Folder | null>}
  */
 export async function updateFolder(id, payload) {
+  const backend = await getBackendClient();
+  if (backend) {
+    const raw = await backend.folders.update(id, payload);
+    return raw ? toFolder(raw) : null;
+  }
   if (hasElectron()) {
     const raw = await window.electronAPI.folders.update(id, payload);
     return raw ? toFolder(raw) : null;
@@ -72,6 +89,10 @@ export async function updateFolder(id, payload) {
 
 /** @returns {Promise<boolean>} */
 export async function deleteFolder(id) {
+  const backend = await getBackendClient();
+  if (backend) {
+    return backend.folders.delete(id);
+  }
   if (hasElectron()) {
     return window.electronAPI.folders.delete(id);
   }

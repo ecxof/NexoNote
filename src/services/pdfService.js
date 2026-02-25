@@ -1,10 +1,11 @@
 /**
  * PDF service: CRUD for PDF metadata and file handling.
- * Uses Electron IPC when available (file-backed storage), otherwise localStorage (browser/dev).
+ * Uses Python backend HTTP when URL set, else Electron IPC, else localStorage (browser/dev).
  * PDF shape: { id, type: 'pdf', title, filePath, folderId?, createdAt, updatedAt }
  */
 
 import { nanoid } from 'nanoid';
+import { getBackendClient } from '../apiClient';
 
 const STORAGE_KEY = 'nexonote_pdfs';
 
@@ -38,6 +39,11 @@ function serializePdf(p) {
 
 /** @returns {Promise<Pdf[]>} */
 export async function getPdfs() {
+  const backend = await getBackendClient();
+  if (backend) {
+    const list = await backend.pdfs.getAll();
+    return list.map(toPdf);
+  }
   if (hasElectron()) {
     const list = await window.electronAPI.pdfs.getAll();
     return list.map(toPdf);
@@ -53,6 +59,11 @@ export async function getPdfs() {
 
 /** @returns {Promise<Pdf | null>} */
 export async function getPdfById(id) {
+  const backend = await getBackendClient();
+  if (backend) {
+    const raw = await backend.pdfs.getById(id);
+    return raw ? toPdf(raw) : null;
+  }
   if (hasElectron()) {
     const raw = await window.electronAPI.pdfs.getById(id);
     return raw ? toPdf(raw) : null;
@@ -70,6 +81,11 @@ export async function getPdfById(id) {
  * @returns {Promise<Pdf>}
  */
 export async function addPdf(filePath, title, folderId = null) {
+  const backend = await getBackendClient();
+  if (backend) {
+    const raw = await backend.pdfs.add(filePath, title, folderId);
+    return toPdf(raw);
+  }
   if (hasElectron()) {
     const raw = await window.electronAPI.pdfs.add(filePath, title, folderId);
     return toPdf(raw);
@@ -96,6 +112,11 @@ export async function addPdf(filePath, title, folderId = null) {
  * @returns {Promise<Pdf | null>}
  */
 export async function updatePdf(id, payload) {
+  const backend = await getBackendClient();
+  if (backend) {
+    const raw = await backend.pdfs.update(id, payload);
+    return raw ? toPdf(raw) : null;
+  }
   if (hasElectron()) {
     const raw = await window.electronAPI.pdfs.update(id, payload);
     return raw ? toPdf(raw) : null;
@@ -128,6 +149,10 @@ export async function duplicatePdf(id, folderId) {
 
 /** @returns {Promise<boolean>} */
 export async function removePdf(id) {
+  const backend = await getBackendClient();
+  if (backend) {
+    return backend.pdfs.remove(id);
+  }
   if (hasElectron()) {
     return window.electronAPI.pdfs.remove(id);
   }

@@ -46,6 +46,8 @@ function App() {
   const [noteViewRightSidebarOpen, setNoteViewRightSidebarOpen] = useState(true);
   const [tabs, setTabs] = useState([]);
   const [activeTabId, setActiveTabId] = useState(null);
+  const [flashcardLibraryVersion, setFlashcardLibraryVersion] = useState(0);
+  const [reviewSessionConfig, setReviewSessionConfig] = useState(null);
   const editorFlushSaveRef = useRef(null);
   const editorScrollRef = useRef(null);
 
@@ -213,6 +215,8 @@ function App() {
   const handleNoteSaved = useCallback((updated) => {
     if (!updated?.id) return;
     setNotes((prev) => prev.map((n) => (n.id === updated.id ? { ...n, ...updated } : n)));
+    // Ensure flashcard library reflects note-linked deck title changes immediately.
+    setFlashcardLibraryVersion((v) => v + 1);
   }, []);
 
   const handleSelectFolder = useCallback((folderId) => {
@@ -259,6 +263,14 @@ function App() {
 
   const handleBackFromSemanticMap = useCallback(() => {
     setView('editor');
+  }, []);
+
+  const handleSemanticLinksReady = useCallback((links) => {
+    editorScrollRef.current?.applySemanticLinks?.(links);
+  }, []);
+
+  const handleSemanticLinksClear = useCallback(() => {
+    editorScrollRef.current?.clearSemanticLinks?.();
   }, []);
 
   const handleCreateFolder = useCallback((parentId = null) => {
@@ -333,6 +345,7 @@ function App() {
         const ok = await deleteNote(noteId);
         if (ok) {
           loadNotes();
+          setFlashcardLibraryVersion((v) => v + 1);
           if (currentNoteId === noteId) {
             setCurrentNoteId(null);
             setView(view === 'editor' ? 'dashboard' : view);
@@ -428,6 +441,21 @@ function App() {
     setView('folder');
   }, []);
 
+  const handleFlashcardLibraryRefresh = useCallback(() => {
+    setFlashcardLibraryVersion((v) => v + 1);
+  }, []);
+
+  const handleStartReviewSession = useCallback((config = {}) => {
+    setReviewSessionConfig(config);
+    setView('flashcard-review');
+  }, []);
+
+  const handleCloseReviewSession = useCallback(() => {
+    setReviewSessionConfig(null);
+    setView('flashcards');
+    setFlashcardLibraryVersion((v) => v + 1);
+  }, []);
+
   useEffect(() => {
     if (view === 'editor' || view === 'dashboard' || view === 'folder') loadSettings();
   }, [view, loadSettings]);
@@ -520,7 +548,6 @@ function App() {
       <MainContent
         view={view}
         notes={notes}
-        allNotesForLinking={notes}
         folderNotes={folderNotes}
         pdfs={pdfs}
         currentNoteId={currentNoteId}
@@ -567,6 +594,14 @@ function App() {
         onTagsChange={handleTagsChange}
         onExploreSemanticMap={handleExploreSemanticMap}
         onBackFromSemanticMap={handleBackFromSemanticMap}
+        allNotesForLinking={notes}
+        onSemanticLinksReady={handleSemanticLinksReady}
+        onSemanticLinksClear={handleSemanticLinksClear}
+        flashcardLibraryVersion={flashcardLibraryVersion}
+        onFlashcardLibraryRefresh={handleFlashcardLibraryRefresh}
+        reviewSessionConfig={reviewSessionConfig}
+        onCloseReviewSession={handleCloseReviewSession}
+        onStartReviewSession={handleStartReviewSession}
       />
     </div>
     </ItemMenuProvider>
