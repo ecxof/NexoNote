@@ -46,6 +46,7 @@ import {
   Upload,
   Sparkles,
   ChevronDown,
+  Search,
 } from 'lucide-react';
 
 const HIGHLIGHT_COLORS = [
@@ -114,6 +115,7 @@ const RichTextEditor = forwardRef(function RichTextEditor({
   className = '',
   showToolbar = true,
   onSemanticLinkClick,
+  onDefineTerm,
 }, ref) {
   const editor = useEditor({
     extensions,
@@ -285,6 +287,7 @@ const RichTextEditor = forwardRef(function RichTextEditor({
             left={selectionToolbar.left}
             lastHighlightColor={lastHighlightColor}
             onHighlightColorChange={setLastHighlightColor}
+            onDefineTerm={onDefineTerm}
           />
         )}
       </div>
@@ -294,9 +297,18 @@ const RichTextEditor = forwardRef(function RichTextEditor({
 
 export default RichTextEditor;
 
-function SelectionFloatingToolbar({ editor, top, left, lastHighlightColor, onHighlightColorChange }) {
+function SelectionFloatingToolbar({ editor, top, left, lastHighlightColor, onHighlightColorChange, onDefineTerm }) {
   const [highlightDropdownOpen, setHighlightDropdownOpen] = useState(false);
   if (!editor) return null;
+
+  const handleDefine = () => {
+    const { from, to } = editor.state.selection;
+    const term = editor.state.doc.textBetween(from, to, ' ');
+    if (term.trim()) {
+      onDefineTerm?.(term.trim());
+    }
+  };
+
   return (
     <div
       className="rich-text-editor-selection-toolbar"
@@ -313,6 +325,27 @@ function SelectionFloatingToolbar({ editor, top, left, lastHighlightColor, onHig
     >
       <span className="rich-text-editor-selection-toolbar-caret" aria-hidden />
       <div className="rich-text-editor-selection-toolbar-inner">
+        <button
+          type="button"
+          className="rich-text-editor-selection-toolbar-btn"
+          onClick={handleDefine}
+          title="Define this"
+          aria-label="Define this"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '0 8px',
+            fontSize: '0.85rem',
+            fontWeight: 500,
+            color: 'var(--accent-primary)',
+            borderRight: '1px solid var(--border-color)',
+            marginRight: '2px'
+          }}
+        >
+          <Search size={15} strokeWidth={2.5} />
+          ✦
+        </button>
         <button
           type="button"
           className="rich-text-editor-selection-toolbar-btn"
