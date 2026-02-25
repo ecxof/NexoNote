@@ -1,8 +1,8 @@
 /**
- * Right sidebar: AI Chatbot assistant for the current note.
- * Provides streaming chat with OpenAI, quick actions, and note-context awareness.
+ * Right sidebar: AI Chatbot assistant for the current note, plus Flashcards.
+ * Provides streaming chat with Hugging Face, quick actions (Explain This, Summarize, Quiz Me), and note-context awareness.
  */
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
 import {
   Sparkles,
   BookOpen,
@@ -15,6 +15,8 @@ import {
   AlertTriangle,
   Bot,
   User,
+  Plus,
+  Search,
 } from 'lucide-react';
 import { sendChatMessage } from '../services/chatService';
 
@@ -58,7 +60,12 @@ const QUICK_ACTIONS = [
   },
 ];
 
-export default function NoteViewRightSidebar({ note, onCollapse, onExport }) {
+const NoteViewRightSidebar = forwardRef(function NoteViewRightSidebar({
+  note,
+  onCollapse,
+  onExport,
+  onManualCreateFlashcard,
+}, ref) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -157,6 +164,12 @@ export default function NoteViewRightSidebar({ note, onCollapse, onExport }) {
     }
     setIsStreaming(false);
   }, []);
+
+  useImperativeHandle(ref, () => ({
+    triggerAsk(text) {
+      handleSendMessage(text);
+    }
+  }), [handleSendMessage]);
 
   const hasMessages = messages.length > 0;
 
@@ -323,6 +336,28 @@ export default function NoteViewRightSidebar({ note, onCollapse, onExport }) {
           )}
         </div>
       </form>
+
+      {/* Flashcards section (preserved from target) */}
+      {onManualCreateFlashcard && (
+        <div className="note-view-right-sidebar-flashcard-section">
+          <section className="note-view-right-sidebar-section">
+            <h3 className="note-view-right-sidebar-section-title">Flashcards</h3>
+            <div className="note-view-right-sidebar-flashcard-actions">
+              <button
+                type="button"
+                className="note-view-right-sidebar-btn note-view-right-sidebar-btn-primary"
+                onClick={() => onManualCreateFlashcard?.(note)}
+                disabled={!note}
+              >
+                <Plus size={18} />
+                Create Flashcards
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </aside>
   );
-}
+});
+
+export default NoteViewRightSidebar;
