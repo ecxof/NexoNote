@@ -16,7 +16,6 @@ import {
   Bot,
   User,
   Plus,
-  Plus,
   Search,
 } from 'lucide-react';
 import { sendChatMessage } from '../services/chatService';
