@@ -2,7 +2,7 @@
  * Right sidebar: AI Chatbot assistant for the current note, plus Flashcards.
  * Provides streaming chat with Hugging Face, quick actions (Explain This, Summarize, Quiz Me), and note-context awareness.
  */
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
 import {
   Sparkles,
   BookOpen,
@@ -16,6 +16,8 @@ import {
   Bot,
   User,
   Plus,
+  Plus,
+  Search,
 } from 'lucide-react';
 import { sendChatMessage } from '../services/chatService';
 
@@ -59,12 +61,12 @@ const QUICK_ACTIONS = [
   },
 ];
 
-export default function NoteViewRightSidebar({
+const NoteViewRightSidebar = forwardRef(function NoteViewRightSidebar({
   note,
   onCollapse,
   onExport,
   onManualCreateFlashcard,
-}) {
+}, ref) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -163,6 +165,12 @@ export default function NoteViewRightSidebar({
     }
     setIsStreaming(false);
   }, []);
+
+  useImperativeHandle(ref, () => ({
+    triggerAsk(text) {
+      handleSendMessage(text);
+    }
+  }), [handleSendMessage]);
 
   const hasMessages = messages.length > 0;
 
@@ -351,4 +359,6 @@ export default function NoteViewRightSidebar({
       )}
     </aside>
   );
-}
+});
+
+export default NoteViewRightSidebar;

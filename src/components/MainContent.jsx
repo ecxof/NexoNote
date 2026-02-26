@@ -301,11 +301,23 @@ function WorkspaceLayout({
   const startXRef = useRef(0);
   const startWidthRef = useRef(sidebarWidth);
   const startRightWidthRef = useRef(rightSidebarWidth);
+  const rightSidebarRef = useRef(null);
 
   const allTags = useMemo(
     () => [...new Set((notes || []).flatMap((n) => n.tags || []))].filter(Boolean).sort(),
     [notes]
   );
+
+  const handleDefineTerm = useCallback((term) => {
+    if (!term) return;
+    if (!noteViewRightSidebarOpen) {
+      onNoteViewRightSidebarOpenChange(true);
+    }
+    // Small delay to ensure sidebar is open and ref is ready if it was closed
+    setTimeout(() => {
+      rightSidebarRef.current?.triggerAsk(`Explain this term: "${term}"`);
+    }, 100);
+  }, [noteViewRightSidebarOpen, onNoteViewRightSidebarOpenChange]);
 
   const handleResizeMouseDown = useCallback((e) => {
     e.preventDefault();
@@ -422,6 +434,7 @@ function WorkspaceLayout({
                   flushSaveRef={editorFlushSaveRef}
                   editorScrollRef={editorScrollRef}
                   onSemanticLinkClick={(noteId) => onOpenInTab?.({ type: 'note', id: noteId })}
+                  onDefineTerm={handleDefineTerm}
                 />
               ) : activeTab.type === 'pdf' && currentPdf ? (
                 <PDFViewer
@@ -475,6 +488,7 @@ function WorkspaceLayout({
           }}
         >
           <NoteViewRightSidebar
+            ref={rightSidebarRef}
             note={activeTab?.type === 'note' ? currentNote : null}
             onCollapse={() => onNoteViewRightSidebarOpenChange(false)}
             onManualCreateFlashcard={(note) => {
@@ -484,7 +498,7 @@ function WorkspaceLayout({
             onExport={activeTab?.type === 'note' ? async () => {
               // Export note to PDF
               if (!currentNote) return;
-              
+
               try {
                 // Create a temporary HTML document with note content
                 const htmlContent = `
@@ -534,7 +548,7 @@ function WorkspaceLayout({
                 // Create blob and download
                 const blob = new Blob([htmlContent], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
-                
+
                 // Use print dialog to save as PDF
                 const printWindow = window.open(url, '_blank');
                 if (printWindow) {
