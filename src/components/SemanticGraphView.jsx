@@ -20,6 +20,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import ForceGraph2D from "react-force-graph-2d";
 import { X, ExternalLink, CreditCard, Clock, Network } from "lucide-react";
 import { findSemanticLinks } from "../services/semanticLinkingService";
+import { getFlashcards } from "../services/flashcardService";
 
 // ─── Canvas helpers ────────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ export default function SemanticGraphView({
   notes = [],
   onClose,
   onOpenInTab,
+  onStartReviewSession,
 }) {
   const graphRef = useRef(null);
   const containerRef = useRef(null);
@@ -73,6 +75,9 @@ export default function SemanticGraphView({
 
   const [selectedNode, setSelectedNode] = useState(null);
   const [panelOpen, setPanelOpen] = useState(false);
+
+  const [flashcardCount, setFlashcardCount] = useState(0);
+  const [flashcardCountLoading, setFlashcardCountLoading] = useState(false);
 
   const PANEL_W = 340;
 
@@ -101,6 +106,29 @@ export default function SemanticGraphView({
       else setRelatedData(links || []);
     });
   }, [note?.id, note?.content, notes]);
+
+  // ── Fetch flashcard count for selected node ──────────────────────────────────
+
+  useEffect(() => {
+    if (!selectedNode?.id || selectedNode.isCenter) {
+      setFlashcardCount(0);
+      return;
+    }
+    let cancelled = false;
+    setFlashcardCountLoading(true);
+    getFlashcards({ noteId: selectedNode.id }).then((cards) => {
+      if (!cancelled) {
+        setFlashcardCount(cards.length);
+        setFlashcardCountLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setFlashcardCount(0);
+        setFlashcardCountLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [selectedNode?.id, selectedNode?.isCenter]);
 
   // ── Build graph data ─────────────────────────────────────────────────────────
 
@@ -284,7 +312,10 @@ export default function SemanticGraphView({
 
   const closePanel = useCallback(() => {
     setPanelOpen(false);
-    setTimeout(() => setSelectedNode(null), 280);
+    setTimeout(() => {
+      setSelectedNode(null);
+      setFlashcardCount(0);
+    }, 280);
   }, []);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -441,12 +472,29 @@ export default function SemanticGraphView({
                     <button
                       type="button"
                       className="sgv-btn-secondary"
-                      disabled
-                      title="Flashcards coming soon"
+                      disabled={flashcardCountLoading || flashcardCount === 0}
+                      title={
+                        flashcardCountLoading
+                          ? "Loading flashcards…"
+                          : flashcardCount === 0
+                          ? "No flashcards for this note yet"
+                          : `Review ${flashcardCount} flashcard${flashcardCount !== 1 ? "s" : ""}`
+                      }
+                      style={{
+                        opacity: flashcardCountLoading || flashcardCount === 0 ? 0.45 : 1,
+                        cursor: flashcardCountLoading || flashcardCount === 0 ? "not-allowed" : "pointer",
+                      }}
+                      onClick={() => {
+                        if (flashcardCount > 0 && selectedNode?.id) {
+                          onStartReviewSession?.({ noteId: selectedNode.id, type: "note" });
+                        }
+                      }}
                     >
                       <CreditCard size={14} aria-hidden />
                       Review Flashcards
-                      <span className="sgv-btn-badge">0</span>
+                      <span className="sgv-btn-badge">
+                        {flashcardCountLoading ? "…" : flashcardCount}
+                      </span>
                     </button>
                   </div>
                 )}
