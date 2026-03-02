@@ -192,6 +192,7 @@ export default function MainContent({
           notes={allNotesForLinking ?? notes}
           onClose={onBackFromSemanticMap}
           onOpenInTab={onOpenInTab}
+          onStartReviewSession={onStartReviewSession}
         />
       </main>
     );
