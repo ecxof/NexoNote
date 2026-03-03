@@ -11,6 +11,9 @@ import {
   PanelLeft,
   BookOpenText,
   ChartColumnIncreasing,
+  Search,
+  X as ClearIcon,
+  FileText,
 } from 'lucide-react';
 import SidebarTree from './SidebarTree';
 import { getSettings, updateSettings } from '../services/settingsService';
@@ -53,6 +56,7 @@ export default function Sidebar({
   const [collapsed, setCollapsed] = useState(false);
   const [expandedFolderIds, setExpandedFolderIds] = useState(new Set());
   const [isDragging, setIsDragging] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const sidebarRef = useRef(null);
   const startXRef = useRef(0);
   const startWidthRef = useRef(width);
@@ -117,6 +121,17 @@ export default function Sidebar({
     });
   }, []);
 
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+  const searchResults = trimmedQuery
+    ? notes.filter((note) => {
+        const titleMatch = (note.title || '').toLowerCase().includes(trimmedQuery);
+        const tagMatch = (note.tags || []).some((tag) =>
+          tag.toLowerCase().includes(trimmedQuery),
+        );
+        return titleMatch || tagMatch;
+      })
+    : [];
+
   const currentWidth = collapsed ? COLLAPSED_WIDTH : width;
   const wrapperWidth = collapsed ? currentWidth : currentWidth + RESIZE_HANDLE_WIDTH;
 
@@ -133,6 +148,34 @@ export default function Sidebar({
               <img src="/NexoNote Logo 2.png" alt="NexoNote" className="sidebar-logo-icon" />
               {!collapsed && <h1 className="sidebar-logo-text">NexoNote</h1>}
             </div>
+
+            {!collapsed && (
+              <div className="sidebar-search">
+                <div className="search-input-wrapper">
+                  <Search size={14} className="search-icon" aria-hidden />
+                  <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Search notes..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    aria-label="Search notes by title or tag"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      className="search-clear-btn"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Clear search"
+                    >
+                      <ClearIcon size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <nav className="sidebar-nav">
@@ -196,35 +239,74 @@ export default function Sidebar({
           </nav>
 
           {!collapsed ? (
-            <SidebarTree
-              notes={notes}
-              pdfs={pdfs}
-              folders={folders}
-              currentNoteId={currentNoteId}
-              selectedFolderId={selectedFolderId}
-              view={view}
-              expandedFolderIds={expandedFolderIds}
-              onToggleFolder={toggleFolder}
-              onSelectNote={onSelectNote}
-              onSelectFolder={onSelectFolder}
-              onOpenInTab={onOpenInTab}
-              onCreateNote={onCreateNote}
-              onCreateFolder={onCreateFolder}
-              onRenameNote={onRenameNote}
-              onDeleteNote={onDeleteNote}
-              onCopyNote={onCopyNote}
-              onPasteNote={onPasteNote}
-              onMoveNoteToFolder={onMoveNoteToFolder}
-              onRenameFolder={onRenameFolder}
-              onDeleteFolder={onDeleteFolder}
-              copiedNoteId={copiedNoteId}
-              onRenamePdf={onRenamePdf}
-              onDeletePdf={onDeletePdf}
-              onCopyPdf={onCopyPdf}
-              onPastePdf={onPastePdf}
-              onMovePdfToFolder={onMovePdfToFolder}
-              copiedPdfId={copiedPdfId}
-            />
+            trimmedQuery ? (
+              <div className="sidebar-search-results">
+                {searchResults.length === 0 ? (
+                  <p className="sidebar-search-empty">No notes match &ldquo;{searchQuery}&rdquo;</p>
+                ) : (
+                  <ul className="sidebar-tree-list">
+                    {searchResults.map((note) => (
+                      <li key={note.id} className="sidebar-tree-item">
+                        <button
+                          type="button"
+                          className={`sidebar-tree-node sidebar-tree-node-pill sidebar-tree-node-note${currentNoteId === note.id && view === 'editor' ? ' active' : ''}`}
+                          onClick={() => {
+                            if (onOpenInTab) onOpenInTab({ type: 'note', id: note.id });
+                            else onSelectNote(note.id);
+                            setSearchQuery('');
+                          }}
+                          title={note.title || 'Untitled'}
+                        >
+                          <FileText size={14} className="sidebar-tree-icon" />
+                          <div className="sidebar-search-result-content">
+                            <span className="sidebar-tree-label">{note.title || 'Untitled'}</span>
+                            {note.tags?.length > 0 && (
+                              <div className="sidebar-search-result-tags">
+                                {note.tags.slice(0, 3).map((tag) => (
+                                  <span key={tag} className="sidebar-search-result-tag">
+                                    #{tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <SidebarTree
+                notes={notes}
+                pdfs={pdfs}
+                folders={folders}
+                currentNoteId={currentNoteId}
+                selectedFolderId={selectedFolderId}
+                view={view}
+                expandedFolderIds={expandedFolderIds}
+                onToggleFolder={toggleFolder}
+                onSelectNote={onSelectNote}
+                onSelectFolder={onSelectFolder}
+                onOpenInTab={onOpenInTab}
+                onCreateNote={onCreateNote}
+                onCreateFolder={onCreateFolder}
+                onRenameNote={onRenameNote}
+                onDeleteNote={onDeleteNote}
+                onCopyNote={onCopyNote}
+                onPasteNote={onPasteNote}
+                onMoveNoteToFolder={onMoveNoteToFolder}
+                onRenameFolder={onRenameFolder}
+                onDeleteFolder={onDeleteFolder}
+                copiedNoteId={copiedNoteId}
+                onRenamePdf={onRenamePdf}
+                onDeletePdf={onDeletePdf}
+                onCopyPdf={onCopyPdf}
+                onPastePdf={onPastePdf}
+                onMovePdfToFolder={onMovePdfToFolder}
+                copiedPdfId={copiedPdfId}
+              />
+            )
           ) : null}
 
           <div className="sidebar-footer" style={{ flexShrink: 0 }}>
