@@ -53,6 +53,7 @@ export default function PerformanceAnalyticsView({ refreshKey = 0, onStartReview
           <div className="performance-legend">
             <span><CircleDot size={12} /> Mastery (80%+)</span>
             <span><CircleDot size={12} /> Review Needed (60-79%)</span>
+            <span><CircleDot size={12} /> Poor Performance (&lt;60%)</span>
             <span><CircleDot size={12} /> No Data (0 reviews)</span>
           </div>
           <p className="performance-description">
