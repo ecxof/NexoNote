@@ -6,7 +6,7 @@
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
-    "electron:dev": "concurrently \"vite\" \"wait-on http://127.0.0.1:5173 && electron .\"",
+    "electron:dev": "concurrently \"vite\" \"wait-on http://127.0.0.1:5173 && npx electron .\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",

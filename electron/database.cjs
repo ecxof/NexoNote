@@ -183,7 +183,7 @@ function runFlashcardMigrations() {
   const insertDeck = db.prepare(
     'INSERT INTO flashcard_decks (id, title, source_note_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
   );
-  const setDeckOnCards = db.prepare('UPDATE flashcards SET deck_id = ? WHERE note_id = ? AND (deck_id IS NULL OR deck_id = "")');
+  const setDeckOnCards = db.prepare('UPDATE flashcards SET deck_id = ? WHERE note_id = ? AND (deck_id IS NULL OR deck_id = \'\')');
   const now = new Date().toISOString();
 
   for (const row of rows) {
