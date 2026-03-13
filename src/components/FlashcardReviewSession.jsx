@@ -93,13 +93,20 @@ export default function FlashcardReviewSession({ noteId = null, topicId = null, 
 
   async function submitReview(rating, difficulty) {
     if (!card || !revealed) return;
+    // For flip cards without explicit self-assess, infer result from rating.
+    const effectiveResult = result ?? (rating === 0 ? 'incorrect' : rating >= 3 ? 'correct' : null);
     await reviewFlashcard(card.id, rating, null, {
-      result: result || null,
+      result: effectiveResult,
       difficulty,
       responseTimeMs: null,
     });
-    const nextCards = cards.filter((c) => c.id !== card.id);
-    setCards(nextCards);
+    if (difficulty === 'again') {
+      // Re-queue the card at the end so the user reviews it again this session.
+      const currentCard = card;
+      setCards((prev) => [...prev.filter((c) => c.id !== currentCard.id), currentCard]);
+    } else {
+      setCards((prev) => prev.filter((c) => c.id !== card.id));
+    }
     setIndex(0);
     setFlipped(false);
     setSelectedOption(null);
@@ -223,7 +230,7 @@ export default function FlashcardReviewSession({ noteId = null, topicId = null, 
                 type="button"
                 className={`flashcard-rating-btn ${button.tone}`}
                 onClick={() => submitReview(button.rating, button.difficulty)}
-                disabled={!revealed}
+                disabled={!revealed || (card?.type === 'flip' && result === null)}
               >
                 <span>{button.label}</span>
                 <small>{button.sub}</small>

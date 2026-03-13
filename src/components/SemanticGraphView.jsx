@@ -486,7 +486,7 @@ export default function SemanticGraphView({
                       }}
                       onClick={() => {
                         if (flashcardCount > 0 && selectedNode?.id) {
-                          onStartReviewSession?.({ noteId: selectedNode.id, type: "note" });
+                          onStartReviewSession?.({ noteId: selectedNode.id, dueOnly: false });
                         }
                       }}
                     >

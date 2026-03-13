@@ -46,39 +46,82 @@ export default function NoteViewSidebar({
     [notes, note?.id],
   );
 
+  // Stable signature: only changes when the actual set of other-note ids changes.
+  const otherNotesSignature = useMemo(
+    () => otherNotes.map((n) => n.id).sort().join(','),
+    [otherNotes],
+  );
+
+  // Keep stable refs to the latest callbacks so the debounced closure never goes stale.
+  const onSemanticLinksReadyRef = useRef(onSemanticLinksReady);
+  const onSemanticLinksClearRef = useRef(onSemanticLinksClear);
+  useEffect(() => { onSemanticLinksReadyRef.current = onSemanticLinksReady; }, [onSemanticLinksReady]);
+  useEffect(() => { onSemanticLinksClearRef.current = onSemanticLinksClear; }, [onSemanticLinksClear]);
+
+  // Ref to track the last values we actually ran semantic linking for.
+  const lastRunRef = useRef({ noteId: null, noteContent: null, notesSignature: null });
+
   useEffect(() => {
     if (!note?.id || !note?.content || otherNotes.length === 0) {
       setRelatedLinks([]);
       setRelatedError(null);
-      onSemanticLinksClear?.();
+      onSemanticLinksClearRef.current?.();
+      lastRunRef.current = { noteId: null, noteContent: null, notesSignature: null };
       return;
     }
+
+    const currentNoteId = note.id;
+    const currentContent = note.content;
+    const currentSignature = otherNotesSignature;
+
+    // Skip if nothing that affects the result has actually changed.
+    const last = lastRunRef.current;
+    if (
+      last.noteId === currentNoteId &&
+      last.noteContent === currentContent &&
+      last.notesSignature === currentSignature
+    ) {
+      return;
+    }
+
     let cancelled = false;
-    setRelatedLoading(true);
-    setRelatedError(null);
-    findSemanticLinks(
-      note.content,
-      otherNotes.map((n) => ({ id: n.id, content: n.content ?? '' })),
-      { threshold: 0.25, maxResults: 20 },
-    ).then(({ links, error }) => {
+
+    // Debounce: wait 800 ms after the last change before running the (expensive) Python call.
+    const timer = setTimeout(() => {
       if (cancelled) return;
-      setRelatedLoading(false);
-      setRelatedError(error || null);
-      const normalized = (links || []).map((l) => ({
-        ...l,
-        linked_note_id: l.linked_note_id ?? l.note_id,
-        similarity_score: l.similarity_score ?? l.score ?? 0,
-        matched_keywords: l.matched_keywords ?? [],
-      }));
-      setRelatedLinks(normalized);
-      if (normalized.length > 0) {
-        onSemanticLinksReady?.(normalized);
-      } else {
-        onSemanticLinksClear?.();
-      }
-    });
-    return () => { cancelled = true; };
-  }, [note?.id, note?.content, otherNotes]);
+      setRelatedLoading(true);
+      setRelatedError(null);
+      // Capture the notes list at the time the timer fires.
+      const notesSnapshot = otherNotes.map((n) => ({ id: n.id, content: n.content ?? '' }));
+      findSemanticLinks(
+        currentContent,
+        notesSnapshot,
+        { threshold: 0.25, maxResults: 20 },
+      ).then(({ links, error }) => {
+        if (cancelled) return;
+        lastRunRef.current = { noteId: currentNoteId, noteContent: currentContent, notesSignature: currentSignature };
+        setRelatedLoading(false);
+        setRelatedError(error || null);
+        const normalized = (links || []).map((l) => ({
+          ...l,
+          linked_note_id: l.linked_note_id ?? l.note_id,
+          similarity_score: l.similarity_score ?? l.score ?? 0,
+          matched_keywords: l.matched_keywords ?? [],
+        }));
+        setRelatedLinks(normalized);
+        if (normalized.length > 0) {
+          onSemanticLinksReadyRef.current?.(normalized);
+        } else {
+          onSemanticLinksClearRef.current?.();
+        }
+      });
+    }, 800);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [note?.id, note?.content, otherNotes, otherNotesSignature]);
 
   const [editingValue, setEditingValue] = useState('');
   const [isInputVisible, setIsInputVisible] = useState(false);
