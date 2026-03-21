@@ -20,10 +20,16 @@ app = Flask(__name__)
 # Allow requests from Vite dev server
 @app.after_request
 def cors(resp):
-    resp.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
-    resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    origin = request.headers.get("Origin")
+    if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+        resp.headers["Access-Control-Allow-Origin"] = origin
+    resp.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
     return resp
+
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({"status": "ok"})
 
 @app.route("/find-links", methods=["POST", "OPTIONS"])
 def find_links():

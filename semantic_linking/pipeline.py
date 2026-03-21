@@ -283,7 +283,7 @@ def find_semantic_links(
             top_n=top_keywords,
         )
         results.append({
-            "note_id": nid,
+            "linked_note_id": nid,
             "similarity_score": round(float(score), 4),
             "matched_keywords": keywords,
         })

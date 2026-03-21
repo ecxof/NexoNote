@@ -99,7 +99,7 @@ export default function SemanticGraphView({
     findSemanticLinks(
       note.content ?? "",
       others.map((n) => ({ id: n.id, content: n.content ?? "" })),
-      { threshold: 0.3, maxResults: 40, topKeywords: 6 },
+      { threshold: 0.2, maxResults: 80, topKeywords: 6 },
     ).then(({ links, error }) => {
       setLoading(false);
       if (error) setFetchError(error);
