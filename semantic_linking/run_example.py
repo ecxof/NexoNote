@@ -29,9 +29,9 @@ def main():
         "note-3": "<p>Optimization: stochastic gradient descent and learning rate schedules.</p>",
     }
     links = find_semantic_links(target, existing, threshold=0.25)
-    print("Semantic links (note_id, score):")
+    print("Semantic links (linked_note_id, similarity_score):")
     for item in links:
-        print(f"  {item['note_id']}: {item['score']:.4f}")
+        print(f"  {item['linked_note_id']}: {item['similarity_score']:.4f}")
 
 if __name__ == "__main__":
     main()
