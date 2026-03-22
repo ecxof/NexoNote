@@ -94,7 +94,6 @@
 | File | Purpose |
 |------|---------|
 | README.md | Project overview, quick start, features, roadmap |
-| CLAUDE.md | AI assistant context and project rules |
 | ARCHITECTURE.md | System architecture, component hierarchy, data model |
 | COMPLETE_FILE_LISTING.md | This file — full inventory of all project files |
 | DEVELOPER_CHECKLIST.md | Daily dev workflow, code standards, troubleshooting |
