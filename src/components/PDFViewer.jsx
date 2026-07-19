@@ -1,7 +1,12 @@
 /**
- * PDF viewer: renders PDF using an <embed> tag with data URLs.
- * Blob URLs are converted to data URLs on the fly to avoid browser security
- * restrictions. Highlights are stored in-memory per PDF view (not persisted).
+ * PDF viewer: renders PDF using an <embed> tag.
+ * - Electron: PDFs are served through the custom nexopdf:// protocol
+ *   (registered in electron/main.cjs), which streams the file from disk.
+ *   Raw filesystem paths cannot be embedded from an http:// or file://
+ *   renderer, so the old `src={filePath}` approach never loaded.
+ * - Browser: data URLs are used; blob URLs are converted to data URLs on
+ *   the fly to avoid browser security restrictions.
+ * Highlights are stored in-memory per PDF view (not persisted).
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import PDFFloatingToolbar from './PDFFloatingToolbar';
@@ -62,7 +67,9 @@ export default function PDFViewer({ pdf, onExport }) {
         let url = pdf.filePath;
 
         if (hasElectron()) {
-          // Electron: filePath is a real filesystem path — use as-is
+          // Electron: request the file through the nexopdf:// protocol,
+          // served by the main process from the stored filesystem path.
+          url = `nexopdf://pdf/${encodeURIComponent(pdf.id)}`;
         } else if (url.startsWith('data:')) {
           // Already a data URL — ready to use
         } else if (url.startsWith('blob:')) {
