@@ -1,8 +1,9 @@
 /**
- * Global "single open" behavior for three-dots item menus.
- * When any menu opens, all others are closed. Used by ItemMenu components app-wide.
+ * Context for the global "single open" three-dots item menu behavior.
+ * The provider component lives in ItemMenuProvider.jsx (kept separate so this
+ * file only exports non-components, which keeps Fast Refresh working).
  */
-import { createContext, useCallback, useRef } from 'react';
+import { createContext, useRef } from 'react';
 
 const noop = () => {};
 
@@ -13,30 +14,6 @@ export const ItemMenuContext = createContext({
 });
 
 let menuIdCounter = 0;
-
-export function ItemMenuProvider({ children }) {
-  const callbacksRef = useRef(new Map());
-
-  const register = useCallback((id, closeCallback) => {
-    callbacksRef.current.set(id, closeCallback);
-  }, []);
-
-  const unregister = useCallback((id) => {
-    callbacksRef.current.delete(id);
-  }, []);
-
-  const closeAllExcept = useCallback((exceptId) => {
-    callbacksRef.current.forEach((close, id) => {
-      if (id !== exceptId) close();
-    });
-  }, []);
-
-  return (
-    <ItemMenuContext.Provider value={{ register, unregister, closeAllExcept }}>
-      {children}
-    </ItemMenuContext.Provider>
-  );
-}
 
 export function useItemMenuId() {
   const idRef = useRef(null);

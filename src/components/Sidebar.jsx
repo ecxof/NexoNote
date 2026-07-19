@@ -68,14 +68,19 @@ export default function Sidebar({
     });
   }, []);
 
+  // Collapse immediately when entering the editor; adjust during render so the
+  // collapsed state is committed in the same pass as the view change.
+  const [prevView, setPrevView] = useState(null);
+  if (prevView !== view) {
+    setPrevView(view);
+    if (view === 'editor') setCollapsed(true);
+  }
+
   useEffect(() => {
-    if (view === 'editor') {
-      setCollapsed(true);
-    } else {
-      getSettings().then((s) => {
-        if (s.sidebarCollapsed != null) setCollapsed(s.sidebarCollapsed);
-      });
-    }
+    if (view === 'editor') return;
+    getSettings().then((s) => {
+      if (s.sidebarCollapsed != null) setCollapsed(s.sidebarCollapsed);
+    });
   }, [view]);
 
   const persistWidth = useCallback((w) => {

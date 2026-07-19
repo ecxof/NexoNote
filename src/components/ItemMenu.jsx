@@ -11,9 +11,9 @@ import { ItemMenuContext } from '../context/ItemMenuContext';
 const DROPDOWN_PADDING = 8;
 const SUBMENU_OFFSET = 4;
 
+/* Both positioning hooks write styles straight to the portal node inside a layout
+ * effect (before paint), so no re-render is needed to place the menu. */
 function useDropdownPosition(open, triggerRef, dropdownRef) {
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-
   useLayoutEffect(() => {
     if (!open || !triggerRef.current || !dropdownRef.current) return;
     const trigger = triggerRef.current.getBoundingClientRect();
@@ -29,20 +29,15 @@ function useDropdownPosition(open, triggerRef, dropdownRef) {
     if (top + dropdown.height + DROPDOWN_PADDING > vh) top = trigger.top - dropdown.height - 2;
     if (top < DROPDOWN_PADDING) top = DROPDOWN_PADDING;
 
-    setPosition({ top, left });
-  }, [open]);
-
-  return position;
+    const el = dropdownRef.current;
+    el.style.top = `${top}px`;
+    el.style.left = `${left}px`;
+  }, [open, triggerRef, dropdownRef]);
 }
 
 function useSubmenuPosition(open, moveOpen, dropdownRef, submenuRef) {
-  const [subPosition, setSubPosition] = useState(null);
-
   useLayoutEffect(() => {
-    if (!open || !moveOpen || !dropdownRef.current || !submenuRef.current) {
-      setSubPosition(null);
-      return;
-    }
+    if (!open || !moveOpen || !dropdownRef.current || !submenuRef.current) return;
     const dropdown = dropdownRef.current.getBoundingClientRect();
     const sub = submenuRef.current.getBoundingClientRect();
     const vw = window.innerWidth;
@@ -53,10 +48,11 @@ function useSubmenuPosition(open, moveOpen, dropdownRef, submenuRef) {
     if (left < DROPDOWN_PADDING) left = DROPDOWN_PADDING;
     if (top + sub.height + DROPDOWN_PADDING > vh) top = vh - sub.height - DROPDOWN_PADDING;
     if (top < DROPDOWN_PADDING) top = DROPDOWN_PADDING;
-    setSubPosition({ top, left });
-  }, [open, moveOpen]);
-
-  return subPosition;
+    const el = submenuRef.current;
+    el.style.top = `${top}px`;
+    el.style.left = `${left}px`;
+    el.style.visibility = 'visible';
+  }, [open, moveOpen, dropdownRef, submenuRef]);
 }
 
 export function NoteItemMenu({
@@ -103,8 +99,8 @@ export function NoteItemMenu({
     setOpen((o) => !o);
   };
 
-  const position = useDropdownPosition(open, triggerRef, dropdownRef);
-  const subPosition = useSubmenuPosition(open, moveOpen, dropdownRef, submenuRef);
+  useDropdownPosition(open, triggerRef, dropdownRef);
+  useSubmenuPosition(open, moveOpen, dropdownRef, submenuRef);
 
   const dropdownEl = open && (
     <>
@@ -113,8 +109,8 @@ export function NoteItemMenu({
         className="item-menu-dropdown item-menu-dropdown-portal"
         style={{
           position: 'fixed',
-          top: position.top,
-          left: position.left,
+          top: 0,
+          left: 0,
           zIndex: 10050,
           margin: 0,
         }}
@@ -145,11 +141,11 @@ export function NoteItemMenu({
           className="item-menu-submenu item-menu-dropdown-portal"
           style={{
             position: 'fixed',
-            top: subPosition?.top ?? 0,
-            left: subPosition?.left ?? 0,
+            top: 0,
+            left: 0,
             zIndex: 10051,
             margin: 0,
-            visibility: subPosition ? 'visible' : 'hidden',
+            visibility: 'hidden',
           }}
         >
           <button
@@ -238,8 +234,8 @@ export function PdfItemMenu({
     setOpen((o) => !o);
   };
 
-  const position = useDropdownPosition(open, triggerRef, dropdownRef);
-  const subPosition = useSubmenuPosition(open, moveOpen, dropdownRef, submenuRef);
+  useDropdownPosition(open, triggerRef, dropdownRef);
+  useSubmenuPosition(open, moveOpen, dropdownRef, submenuRef);
 
   const dropdownEl = open && (
     <>
@@ -248,8 +244,8 @@ export function PdfItemMenu({
         className="item-menu-dropdown item-menu-dropdown-portal"
         style={{
           position: 'fixed',
-          top: position.top,
-          left: position.left,
+          top: 0,
+          left: 0,
           zIndex: 10050,
           margin: 0,
         }}
@@ -280,11 +276,11 @@ export function PdfItemMenu({
           className="item-menu-submenu item-menu-dropdown-portal"
           style={{
             position: 'fixed',
-            top: subPosition?.top ?? 0,
-            left: subPosition?.left ?? 0,
+            top: 0,
+            left: 0,
             zIndex: 10051,
             margin: 0,
-            visibility: subPosition ? 'visible' : 'hidden',
+            visibility: 'hidden',
           }}
         >
           <button
@@ -366,7 +362,7 @@ export function FolderItemMenu({
     setOpen((o) => !o);
   };
 
-  const position = useDropdownPosition(open, triggerRef, dropdownRef);
+  useDropdownPosition(open, triggerRef, dropdownRef);
 
   const dropdownEl = open && (
     <div
@@ -374,8 +370,8 @@ export function FolderItemMenu({
       className="item-menu-dropdown item-menu-dropdown-portal"
       style={{
         position: 'fixed',
-        top: position.top,
-        left: position.left,
+        top: 0,
+        left: 0,
         zIndex: 10050,
         margin: 0,
       }}
