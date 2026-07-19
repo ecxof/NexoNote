@@ -83,40 +83,65 @@ export default function SemanticGraphView({
 
   // ── Fetch semantic links ─────────────────────────────────────────────────────
 
-  useEffect(() => {
-    if (!note?.id) {
-      setLoading(false);
-      return;
-    }
-    // Compare against every note regardless of folder.
-    const others = (notes || []).filter((n) => n.id !== note.id);
-    if (others.length === 0) {
-      setLoading(false);
-      return;
-    }
+  // Compare against every note regardless of folder.
+  const noteId = note?.id;
+  const noteContent = note?.content ?? "";
+  const otherNotes = useMemo(
+    () => (notes || []).filter((n) => n.id !== noteId),
+    [notes, noteId],
+  );
+  const canFetchLinks = !!noteId && otherNotes.length > 0;
+
+  // Track the fetch inputs during render: flip the loading flag on when they
+  // change (a fetch is about to start) and off when there is nothing to fetch,
+  // avoiding setState round-trips inside the effect below.
+  const [prevFetchInputs, setPrevFetchInputs] = useState(null);
+  if (!canFetchLinks) {
+    if (loading) setLoading(false);
+  } else if (
+    prevFetchInputs === null ||
+    prevFetchInputs.id !== noteId ||
+    prevFetchInputs.content !== noteContent ||
+    prevFetchInputs.others !== otherNotes
+  ) {
+    setPrevFetchInputs({ id: noteId, content: noteContent, others: otherNotes });
     setLoading(true);
     setFetchError(null);
+  }
+
+  useEffect(() => {
+    if (!canFetchLinks) return;
     findSemanticLinks(
-      note.content ?? "",
-      others.map((n) => ({ id: n.id, content: n.content ?? "" })),
+      noteContent,
+      otherNotes.map((n) => ({ id: n.id, content: n.content ?? "" })),
       { threshold: 0.2, maxResults: 80, topKeywords: 6 },
     ).then(({ links, error }) => {
       setLoading(false);
       if (error) setFetchError(error);
       else setRelatedData(links || []);
     });
-  }, [note?.id, note?.content, notes]);
+  }, [noteContent, otherNotes, canFetchLinks]);
 
   // ── Fetch flashcard count for selected node ──────────────────────────────────
 
-  useEffect(() => {
-    if (!selectedNode?.id || selectedNode.isCenter) {
-      setFlashcardCount(0);
-      return;
-    }
-    let cancelled = false;
+  const selectedNodeId = selectedNode?.id;
+  const wantsFlashcardCount = !!selectedNodeId && !selectedNode.isCenter;
+
+  // Track the selected node during render: reset the count when no eligible
+  // node is selected, start the loading state when the node changes.
+  const [prevCountNodeId, setPrevCountNodeId] = useState(null);
+  if (!wantsFlashcardCount) {
+    if (flashcardCount !== 0) setFlashcardCount(0);
+    if (prevCountNodeId !== null) setPrevCountNodeId(null);
+  } else if (prevCountNodeId !== selectedNodeId) {
+    setPrevCountNodeId(selectedNodeId);
     setFlashcardCountLoading(true);
-    getFlashcards({ noteId: selectedNode.id }).then((cards) => {
+  }
+
+  useEffect(() => {
+    if (!wantsFlashcardCount) return;
+    let cancelled = false;
+    getFlashcards({ noteId: selectedNodeId }).then((cards) => {
       if (!cancelled) {
         setFlashcardCount(cards.length);
         setFlashcardCountLoading(false);
@@ -128,7 +153,7 @@ export default function SemanticGraphView({
       }
     });
     return () => { cancelled = true; };
-  }, [selectedNode?.id, selectedNode?.isCenter]);
+  }, [selectedNodeId, wantsFlashcardCount]);
 
   // ── Build graph data ─────────────────────────────────────────────────────────
 

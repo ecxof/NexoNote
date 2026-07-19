@@ -29,10 +29,11 @@ async function blobUrlToDataUrl(blobUrl) {
   });
 }
 
-export default function PDFViewer({ pdf, onExport }) {
+export default function PDFViewer({ pdf }) {
   const containerRef = useRef(null);
   const embedRef = useRef(null);
-  const [selection, setSelection] = useState(null);
+  // Text selection inside <embed> is not yet wired up; toolbar stays hidden.
+  const [selection] = useState(null);
   const [highlights, setHighlights] = useState([]);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -122,15 +123,6 @@ export default function PDFViewer({ pdf, onExport }) {
   const handleExplain = useCallback(() => {
     // Placeholder for AI feature
   }, []);
-
-  const handleExport = useCallback(() => {
-    if (onExport) {
-      onExport(pdf, highlights);
-    } else if (pdfUrl) {
-      // Fallback: open in new window for printing
-      window.open(pdfUrl, '_blank');
-    }
-  }, [pdf, highlights, onExport, pdfUrl]);
 
   // --- Loading state ---
   if (loading) {

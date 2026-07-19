@@ -1,9 +1,9 @@
 /**
  * Root: notes, folders, current note, view, clipboard, modals.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import './App.css';
-import { ItemMenuProvider } from './context/ItemMenuContext';
+import { ItemMenuProvider } from './context/ItemMenuProvider';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import { ConfirmModal, PromptModal } from './components/Modal';
@@ -51,25 +51,16 @@ function App() {
   const editorFlushSaveRef = useRef(null);
   const editorScrollRef = useRef(null);
 
-  const loadNotes = useCallback(async () => {
-    const list = await getNotes();
-    setNotes(list);
-  }, []);
+  const loadNotes = useCallback(() => getNotes().then(setNotes), []);
 
-  const loadFolders = useCallback(async () => {
-    const list = await getFolders();
-    setFolders(list);
-  }, []);
+  const loadFolders = useCallback(() => getFolders().then(setFolders), []);
 
-  const loadPdfs = useCallback(async () => {
-    const list = await getPdfs();
-    setPdfs(list);
-  }, []);
+  const loadPdfs = useCallback(() => getPdfs().then(setPdfs), []);
 
-  const loadSettings = useCallback(async () => {
-    const s = await getSettings();
-    setSettings({ ...DEFAULT_SETTINGS, ...s });
-  }, []);
+  const loadSettings = useCallback(
+    () => getSettings().then((s) => setSettings({ ...DEFAULT_SETTINGS, ...s })),
+    []
+  );
 
   useEffect(() => {
     loadNotes();
@@ -121,10 +112,10 @@ function App() {
     handleOpenInTab({ type: 'note', id: note.id });
   }, [handleOpenInTab]);
 
-  // Update tab labels when notes/PDFs are renamed
-  useEffect(() => {
-    setTabs((prev) =>
-      prev.map((tab) => {
+  // Tab labels follow note/PDF renames: derive them at render time.
+  const tabsWithLabels = useMemo(
+    () =>
+      tabs.map((tab) => {
         if (tab.type === 'note' && tab.resourceId) {
           const note = notes.find((n) => n.id === tab.resourceId);
           return { ...tab, label: note?.title || 'Untitled' };
@@ -134,9 +125,9 @@ function App() {
           return { ...tab, label: pdf?.title || 'Untitled PDF' };
         }
         return tab;
-      })
-    );
-  }, [notes, pdfs]);
+      }),
+    [tabs, notes, pdfs]
+  );
 
   const handleCloseTab = useCallback((tabId) => {
     setTabs((prev) => {
@@ -472,15 +463,16 @@ function App() {
     : null;
 
   const [fetchedNote, setFetchedNote] = useState(null);
+  // Drop the fetched copy as soon as it is no longer needed (note deselected or
+  // present in the loaded list). Adjusting state during render avoids an extra
+  // effect pass.
+  const needsFetchedNote = !!currentNoteId && !notes.some((n) => n.id === currentNoteId);
+  if (!needsFetchedNote && fetchedNote !== null) {
+    setFetchedNote(null);
+  }
   useEffect(() => {
-    if (!currentNoteId) {
-      setFetchedNote(null);
-      return;
-    }
-    if (notes.some((n) => n.id === currentNoteId)) {
-      setFetchedNote(null);
-      return;
-    }
+    if (!currentNoteId) return;
+    if (notes.some((n) => n.id === currentNoteId)) return;
     getNoteById(currentNoteId).then((n) => setFetchedNote(n));
   }, [currentNoteId, notes]);
 
@@ -561,7 +553,7 @@ function App() {
         currentNote={noteToShow}
         selectedFolder={selectedFolder}
         folders={folders}
-        tabs={tabs}
+        tabs={tabsWithLabels}
         activeTabId={activeTabId}
         onTabClick={setActiveTabId}
         onTabClose={handleCloseTab}

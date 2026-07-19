@@ -437,7 +437,8 @@ function SelectionFloatingToolbar({ editor, top, left, lastHighlightColor, onHig
   );
 }
 
-function ToolbarBtn({ icon: Icon, active, disabled, onClick, title, ariaLabel }) {
+function ToolbarBtn({ icon, active, disabled, onClick, title, ariaLabel }) {
+  const Icon = icon;
   return (
     <button
       type="button"
@@ -488,7 +489,7 @@ function EditorToolbar({ editor, lastHighlightColor, onHighlightColorChange }) {
 
   const insertImageFromUrl = useCallback(() => {
     if (imageUrl.trim()) insertImage(imageUrl.trim());
-  }, [editor, imageUrl, insertImage]);
+  }, [imageUrl, insertImage]);
 
   const handleImageFile = useCallback((e) => {
     const file = e.target.files?.[0];

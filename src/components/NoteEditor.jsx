@@ -24,71 +24,80 @@ function getFolderPathBreadcrumb(folderId, folders) {
   return [{ id: null, name: 'All' }, ...path];
 }
 
-export default function NoteEditor({ note, folders = [], onNavigateToFolder, onDeleted, onSaved, autoSave = true, fontSize = 'medium', flushSaveRef, editorScrollRef, onSemanticLinkClick, onDefineTerm }) {
+export default function NoteEditor({ note, folders = [], onNavigateToFolder, onSaved, autoSave = true, fontSize = 'medium', flushSaveRef, editorScrollRef, onSemanticLinkClick, onDefineTerm }) {
   const [title, setTitle] = useState(note?.title ?? '');
   const [content, setContent] = useState(note?.content ?? '');
   const [status, setStatus] = useState(''); // 'saving' | 'saved' | 'error' | ''
   const [saving, setSaving] = useState(false);
   const saveTimeoutRef = useRef(null);
   const titleContentRef = useRef({ title: note?.title ?? '', content: note?.content ?? '' });
-  titleContentRef.current = { title, content };
+  useEffect(() => {
+    titleContentRef.current = { title, content };
+  }, [title, content]);
+
+  const noteId = note?.id;
+  const noteTitle = note?.title ?? '';
+  const noteContent = note?.content ?? '';
 
   // Sync title and content from note when switching notes. Editor gets initialContent from
   // note.content (prop) so it always displays the correct note; we sync local state for save.
-  useEffect(() => {
-    setTitle(note?.title ?? '');
-    setContent(note?.content ?? '');
-  }, [note?.id, note?.title, note?.content]);
+  // Done as a render-time state adjustment so it commits in the same pass.
+  const [prevNote, setPrevNote] = useState({ id: noteId, title: noteTitle, content: noteContent });
+  if (prevNote.id !== noteId || prevNote.title !== noteTitle || prevNote.content !== noteContent) {
+    setPrevNote({ id: noteId, title: noteTitle, content: noteContent });
+    setTitle(noteTitle);
+    setContent(noteContent);
+  }
 
   const performSave = useCallback(async () => {
-    if (!note?.id) return;
+    if (!noteId) return;
     setSaving(true);
     setStatus('saving');
     try {
-      const updated = await updateNote(note.id, { title, content });
+      const updated = await updateNote(noteId, { title, content });
       setStatus('saved');
       setSaving(false);
       setTimeout(() => setStatus(''), 2000);
       onSaved?.(updated);
-    } catch (e) {
+    } catch {
       setStatus('error');
       setSaving(false);
     }
-  }, [note?.id, title, content]);
+  }, [noteId, title, content, onSaved]);
 
   // Debounced auto-save when autoSave is on.
   useEffect(() => {
-    if (!autoSave || !note?.id) return;
+    if (!autoSave || !noteId) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(performSave, DEBOUNCE_MS);
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [title, content, autoSave, note?.id, performSave]);
+  }, [title, content, autoSave, noteId, performSave]);
 
   // Expose flush so parent can save pending changes before switching notes.
   const flushSave = useCallback(async () => {
-    if (!note?.id) return;
+    if (!noteId) return;
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = null;
     }
     const { title: t, content: c } = titleContentRef.current;
-    if (t !== (note?.title ?? '') || c !== (note?.content ?? '')) {
+    if (t !== noteTitle || c !== noteContent) {
       setSaving(true);
       setStatus('saving');
       try {
-        const updated = await updateNote(note.id, { title: t, content: c });
+        const updated = await updateNote(noteId, { title: t, content: c });
         setStatus('saved');
         setSaving(false);
         setTimeout(() => setStatus(''), 2000);
         onSaved?.(updated);
-      } catch (e) {
+      } catch {
         setStatus('error');
         setSaving(false);
       }
     }
-  }, [note?.id, note?.title, note?.content, onSaved]);
+  }, [noteId, noteTitle, noteContent, onSaved]);
 
   useEffect(() => {
     if (!flushSaveRef) return;
@@ -101,16 +110,17 @@ export default function NoteEditor({ note, folders = [], onNavigateToFolder, onD
     performSave();
   };
 
+  const noteFolderId = note?.folderId;
+  const folderBreadcrumb = useMemo(
+    () => getFolderPathBreadcrumb(noteFolderId, folders),
+    [noteFolderId, folders]
+  );
+
   if (!note) return null;
 
   const createdDate = note.createdAt
     ? (note.createdAt instanceof Date ? note.createdAt : new Date(note.createdAt)).toLocaleDateString(undefined, { dateStyle: 'medium' })
     : '';
-
-  const folderBreadcrumb = useMemo(
-    () => getFolderPathBreadcrumb(note.folderId, folders),
-    [note.folderId, folders]
-  );
 
   return (
     <div className="note-editor-panel">
