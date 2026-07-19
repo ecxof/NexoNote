@@ -177,15 +177,22 @@ function App() {
       if (!file) return;
 
       const title = file.name.replace(/\.pdf$/i, '');
-      
-      // Convert file to data URL (base64) to avoid blob URL security restrictions
-      // In Electron, we'd copy file and get path; in browser, use data URL
+
       let filePath;
       if (hasElectron()) {
-        // Electron: use file system path
-        filePath = file.path || file.name;
+        // FIX: File.path was removed in Electron 32+. Use the
+        // webUtils.getPathForFile bridge exposed by the preload script.
+        // Fall back to file.path for older Electron versions.
+        filePath =
+          window.electronAPI.files?.getPathForFile?.(file) ??
+          file.path ??
+          null;
+        if (!filePath) {
+          console.error('Could not resolve a filesystem path for the selected PDF.');
+          return;
+        }
       } else {
-        // Browser: convert to data URL
+        // Browser: convert to data URL (base64) to avoid blob URL security restrictions
         filePath = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result);
@@ -193,7 +200,7 @@ function App() {
           reader.readAsDataURL(file);
         });
       }
-      
+
       const pdf = await addPdf(filePath, title, null);
       setPdfs((prev) => [pdf, ...prev]);
       handleOpenInTab({ type: 'pdf', id: pdf.id });

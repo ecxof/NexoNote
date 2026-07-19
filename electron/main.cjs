@@ -5,19 +5,59 @@
  * Storage: SQLite database in userData/nexonote/nexonote.db
  * When USE_PYTHON_BACKEND=1, spawns a Python HTTP backend and uses it; otherwise uses Node + better-sqlite3.
  */
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { spawn } = require('child_process');
 const http = require('http');
+const { pathToFileURL } = require('url');
 const database = require('./database.cjs');
 
-const isDev = process.env.NODE_ENV !== 'production' || !app.isPackaged;
+// FIX: previously `process.env.NODE_ENV !== 'production' || !app.isPackaged`,
+// which is always true in a packaged app (NODE_ENV is unset there), so the
+// packaged app tried to load http://127.0.0.1:5173. app.isPackaged is the
+// reliable signal.
+const isDev = !app.isPackaged;
 const DATA_DIR = path.join(app.getPath('userData'), 'nexonote');
 const USE_PYTHON_BACKEND = process.env.USE_PYTHON_BACKEND === '1' || process.env.NEXONOTE_USE_PYTHON_BACKEND === 'true';
 
 let backendBaseUrl = null;
 let pythonProcess = null;
 let useNodeBackend = true;
+
+// Custom protocol for serving imported PDFs to the renderer.
+// The renderer is served from http://localhost:5173 (dev) or file:// (prod),
+// so it cannot embed raw filesystem paths directly. PDFViewer requests
+// nexopdf://pdf/<id> and this handler streams the file from disk.
+// Must be registered before app is ready.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'nexopdf', privileges: { secure: true, supportFetchAPI: true, stream: true } },
+]);
+
+function registerPdfProtocol() {
+  protocol.handle('nexopdf', async (request) => {
+    try {
+      const url = new URL(request.url);
+      // nexopdf://pdf/<id> → host "pdf", pathname "/<id>"
+      const id = decodeURIComponent(url.pathname.replace(/^\//, ''));
+      if (!id) return new Response('Bad request', { status: 400 });
+
+      // Only the Node backend exposes a synchronous lookup. In Python-backend
+      // mode the renderer talks to the HTTP backend for PDFs instead.
+      if (!useNodeBackend) return new Response('Not available', { status: 404 });
+
+      const pdf = database.pdfsGetById(id);
+      const filePath = pdf?.filePath;
+      if (!filePath || !filePath.toLowerCase().endsWith('.pdf') || !fs.existsSync(filePath)) {
+        return new Response('Not found', { status: 404 });
+      }
+      return net.fetch(pathToFileURL(filePath).toString());
+    } catch (err) {
+      console.error('[nexopdf] failed to serve PDF:', err);
+      return new Response('Internal error', { status: 500 });
+    }
+  });
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -161,6 +201,8 @@ app.whenReady().then(async () => {
     registerNodeBackend();
     ipcMain.handle('backend:getBaseUrl', () => null);
   }
+
+  registerPdfProtocol();
 
   // Semantic linking: Python CLI (independent of data backend)
   ipcMain.handle('semantic-links:find', async (_, payload) => {
