@@ -38,6 +38,7 @@
     "react-force-graph-2d": "^1.25.2"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
     "@eslint/js": "^9.39.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
@@ -45,7 +46,6 @@
     "concurrently": "^9.1.0",
     "electron": "^42.2.0",
     "electron-builder": "^25.1.8",
-    "electron-rebuild": "^3.2.9",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
