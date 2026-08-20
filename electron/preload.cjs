@@ -2,10 +2,18 @@
  * Preload script: exposes a minimal API to the renderer via contextBridge.
  * Renderer must use only these methods; no direct Node or fs access.
  */
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   getBackendUrl: () => ipcRenderer.invoke('backend:getBaseUrl'),
+  files: {
+    /**
+     * Resolve the real filesystem path for a File picked in the renderer.
+     * File.path was removed in Electron 32; webUtils.getPathForFile is the
+     * supported replacement and must be called from the preload context.
+     */
+    getPathForFile: (file) => webUtils.getPathForFile(file),
+  },
   notes: {
     getAll: () => ipcRenderer.invoke('notes:getAll'),
     getById: (id) => ipcRenderer.invoke('notes:getById', id),

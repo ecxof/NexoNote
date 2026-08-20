@@ -27,7 +27,7 @@ NexoNote is a desktop note-taking and study companion built with Electron and Re
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
+- Node.js 18+
 - npm 10+
 
 ### Installation
@@ -43,12 +43,12 @@ npm install
 # Start development server (browser; notes stored in localStorage)
 npm run dev
 
-# Or run as Electron desktop app (notes stored in app data JSON files)
+# Or run as Electron desktop app (notes stored in SQLite)
 npm run electron:dev
 ```
 
 - **Browser:** Visit `http://localhost:5173` (or the port Vite prints). Notes and settings use `localStorage`.
-- **Electron:** Runs the same React app in a window; notes and settings are stored in JSON files under the app’s user data directory.
+- **Electron:** Runs the same React app in a window; notes and settings are stored in a SQLite database (`nexonote.db`) under the app's user data directory. Legacy JSON data files are migrated to SQLite automatically on first launch.
 
 ---
 
@@ -61,6 +61,7 @@ npm run electron:dev
 | Desktop Shell | Electron 33.x | Native window, file system, IPC |
 | Rich Text Editor | TipTap 3.x (ProseMirror) | Note content editing |
 | Database | better-sqlite3 12.x | Local storage (Electron mode) |
+| Packaging | electron-builder | Installer builds |
 | Icons | Lucide React | UI iconography |
 | IDs | nanoid | Unique identifiers |
 | Styling | CSS Variables + Flexbox + Grid | Theming and layout |
@@ -71,8 +72,10 @@ npm run electron:dev
 
 ```
 NexoNote/
+├── .github/
+│   └── workflows/ci.yml         # CI: lint + build on push/PR
 ├── electron/
-│   ├── main.cjs                 # Electron main process + IPC handlers
+│   ├── main.cjs                 # Electron main process + IPC handlers + nexopdf:// protocol
 │   ├── preload.cjs              # contextBridge API
 │   ├── database.cjs             # SQLite schema, CRUD, migration
 │   └── test-database.cjs        # Database smoke tests
@@ -125,7 +128,7 @@ NexoNote/
 - **Sidebar**: Fixed width (256px / w-64)
 - **Main Content**: Flex-grow, scrollable
 - **Dashboard Grid**: Responsive auto-fit layout
-- **Breakpoints**: 
+- **Breakpoints**:
   - Mobile: < 768px (1 column)
   - Tablet: 768px - 1200px (2 columns)
   - Desktop: 1200px+ (3 columns)
@@ -141,8 +144,14 @@ npm run dev
 # Development (Electron desktop app, uses SQLite)
 npm run electron:dev
 
-# Production build
+# Production build (renderer only)
 npm run build
+
+# Package the desktop app (installer in release/)
+npm run dist
+
+# Package without creating an installer (unpacked dir, faster)
+npm run dist:dir
 
 # Rebuild native modules for Electron
 npm run rebuild
@@ -168,15 +177,15 @@ We provide comprehensive documentation for all aspects of the project:
 
 ### Dashboard (Home)
 - Greeting header with "Create New Note" and "Import PDF" buttons
-- Flashcard hero card (placeholder)
+- Flashcard hero card
 - Recent notes grid with tags, file path, and timestamps
 
 ### Note Editor
 - Editable title and rich text body (TipTap)
 - Full toolbar: undo/redo, headings, bold, italic, strikethrough, underline, highlight (split-button with color picker), lists, alignment, links, images, code blocks
 - Floating contextual toolbar on text selection
-- Left sidebar: tags, contents outline, semantic graph placeholder
-- Right sidebar: AI assistant placeholder, flashcard placeholder, export
+- Left sidebar: tags, contents outline, semantic graph
+- Right sidebar: AI assistant, flashcards, export
 
 ### Folder View
 - Breadcrumb navigation, search bar, sort control
@@ -206,12 +215,13 @@ We provide comprehensive documentation for all aspects of the project:
 - [x] Note export to PDF (via print)
 - [x] Custom modals (confirm, prompt) replacing browser dialogs
 - [x] Breadcrumb navigation in folder view and note view
+- [x] Flashcards with SM-2 spaced repetition (flip, MCQ, true/false)
+- [x] Semantic linking (TF-IDF related notes + graph)
+- [x] Electron packaging via electron-builder (`npm run dist`)
 
 ### 📋 Upcoming
-- [ ] Semantic graph / knowledge map
-- [ ] AI-assisted "Explain This" feature
-- [ ] Flashcard generation (MCQ, True/False, Flip Card)
-- [ ] Full Electron packaging and distribution
+- [ ] Auto-update support
+- [ ] Full-text search (SQLite FTS5)
 - [ ] Python ML integration for analytics
 
 ---
@@ -226,20 +236,6 @@ We provide comprehensive documentation for all aspects of the project:
 4. Use CSS variables for colors
 5. Ensure dark theme compatibility
 
-Example:
-```jsx
-function YourComponent() {
-  return (
-    <div className="your-component">
-      <h3 className="your-component-title">Title</h3>
-      <p className="your-component-description">Description</p>
-    </div>
-  );
-}
-
-export default YourComponent;
-```
-
 ### Styling Best Practices
 
 - Always use CSS variables from `index.css`
@@ -247,25 +243,8 @@ export default YourComponent;
 - Add hover states for interactive elements
 - Maintain dark theme consistency
 - Use semantic HTML
-- Keep styles organized and commented
 
 See [STYLING_GUIDELINES.md](./STYLING_GUIDELINES.md) for detailed guidance.
-
----
-
-## 🔧 Configuration
-
-### Vite Configuration
-The project uses Vite 7.2.4 with React plugin. Configuration is in `vite.config.js`:
-
-```javascript
-export default defineConfig({
-  plugins: [react()],
-})
-```
-
-### ESLint
-ESLint rules are configured in `eslint.config.js` with React-specific rules for code quality.
 
 ---
 
@@ -282,11 +261,12 @@ Creates an optimized build in the `dist/` directory.
 # Development
 npm run electron:dev
 
+# Package an installer (output in release/)
+npm run dist
+
 # If better-sqlite3 fails to load, rebuild native modules:
 npm run rebuild
 ```
-
-Electron packaging for distribution (e.g., electron-builder) is planned but not yet configured.
 
 ---
 
@@ -297,21 +277,13 @@ Contributions are welcome! Please ensure:
 2. All components are dark-theme compatible
 3. Responsive design is tested
 4. Documentation is updated
+5. `npm run lint` passes (CI enforces this)
 
 ---
 
 ## 📝 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-## 📞 Support
-
-For questions or issues:
-1. Check the documentation files
-2. Review existing components
-3. Check ARCHITECTURE.md for system design
 
 ---
 
@@ -329,13 +301,13 @@ For questions or issues:
 - SQLite database backend
 - JSON-to-SQLite migration
 
-### Phase 3: Intelligence (Next)
+### Phase 3: Intelligence ✅
 - Semantic graph / knowledge linking
 - AI-assisted "Explain This" for selected text
 - Flashcard generation and review
 
-### Phase 4: Distribution
-- Electron packaging (installer builds)
+### Phase 4: Distribution (In Progress)
+- Electron packaging (installer builds) ✅
 - Auto-update support
 - Performance optimization
 
@@ -350,23 +322,14 @@ For questions or issues:
 
 - [React](https://react.dev) - UI Framework
 - [Vite](https://vitejs.dev) - Build Tool
-- [Modern CSS](https://developer.mozilla.org/en-US/docs/Web/CSS) - Styling
-- [Electron](https://www.electronjs.org/) - Desktop Integration (Coming)
-- [SQLite](https://www.sqlite.org/) - Database (Coming)
-- [Python](https://www.python.org/) - ML Backend (Coming)
+- [Electron](https://www.electronjs.org/) - Desktop Shell
+- [SQLite](https://www.sqlite.org/) (better-sqlite3) - Database
+- [TipTap](https://tiptap.dev) - Rich Text Editor
+- [Python](https://www.python.org/) - Semantic linking + optional backend
 
 ---
 
-**Status**: 🟢 Active Development  
-**Last Updated**: February 14, 2026  
-**Version**: 2.0.0  
+**Status**: 🟢 Active Development
+**Version**: 2.0.0
 
 Enjoy studying smarter with NexoNote!
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.

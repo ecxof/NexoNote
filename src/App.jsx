@@ -1,9 +1,9 @@
 /**
  * Root: notes, folders, current note, view, clipboard, modals.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import './App.css';
-import { ItemMenuProvider } from './context/ItemMenuContext';
+import { ItemMenuProvider } from './context/ItemMenuProvider';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import { ConfirmModal, PromptModal } from './components/Modal';
@@ -51,25 +51,16 @@ function App() {
   const editorFlushSaveRef = useRef(null);
   const editorScrollRef = useRef(null);
 
-  const loadNotes = useCallback(async () => {
-    const list = await getNotes();
-    setNotes(list);
-  }, []);
+  const loadNotes = useCallback(() => getNotes().then(setNotes), []);
 
-  const loadFolders = useCallback(async () => {
-    const list = await getFolders();
-    setFolders(list);
-  }, []);
+  const loadFolders = useCallback(() => getFolders().then(setFolders), []);
 
-  const loadPdfs = useCallback(async () => {
-    const list = await getPdfs();
-    setPdfs(list);
-  }, []);
+  const loadPdfs = useCallback(() => getPdfs().then(setPdfs), []);
 
-  const loadSettings = useCallback(async () => {
-    const s = await getSettings();
-    setSettings({ ...DEFAULT_SETTINGS, ...s });
-  }, []);
+  const loadSettings = useCallback(
+    () => getSettings().then((s) => setSettings({ ...DEFAULT_SETTINGS, ...s })),
+    []
+  );
 
   useEffect(() => {
     loadNotes();
@@ -121,10 +112,10 @@ function App() {
     handleOpenInTab({ type: 'note', id: note.id });
   }, [handleOpenInTab]);
 
-  // Update tab labels when notes/PDFs are renamed
-  useEffect(() => {
-    setTabs((prev) =>
-      prev.map((tab) => {
+  // Tab labels follow note/PDF renames: derive them at render time.
+  const tabsWithLabels = useMemo(
+    () =>
+      tabs.map((tab) => {
         if (tab.type === 'note' && tab.resourceId) {
           const note = notes.find((n) => n.id === tab.resourceId);
           return { ...tab, label: note?.title || 'Untitled' };
@@ -134,9 +125,9 @@ function App() {
           return { ...tab, label: pdf?.title || 'Untitled PDF' };
         }
         return tab;
-      })
-    );
-  }, [notes, pdfs]);
+      }),
+    [tabs, notes, pdfs]
+  );
 
   const handleCloseTab = useCallback((tabId) => {
     setTabs((prev) => {
@@ -177,15 +168,22 @@ function App() {
       if (!file) return;
 
       const title = file.name.replace(/\.pdf$/i, '');
-      
-      // Convert file to data URL (base64) to avoid blob URL security restrictions
-      // In Electron, we'd copy file and get path; in browser, use data URL
+
       let filePath;
       if (hasElectron()) {
-        // Electron: use file system path
-        filePath = file.path || file.name;
+        // FIX: File.path was removed in Electron 32+. Use the
+        // webUtils.getPathForFile bridge exposed by the preload script.
+        // Fall back to file.path for older Electron versions.
+        filePath =
+          window.electronAPI.files?.getPathForFile?.(file) ??
+          file.path ??
+          null;
+        if (!filePath) {
+          console.error('Could not resolve a filesystem path for the selected PDF.');
+          return;
+        }
       } else {
-        // Browser: convert to data URL
+        // Browser: convert to data URL (base64) to avoid blob URL security restrictions
         filePath = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result);
@@ -193,7 +191,7 @@ function App() {
           reader.readAsDataURL(file);
         });
       }
-      
+
       const pdf = await addPdf(filePath, title, null);
       setPdfs((prev) => [pdf, ...prev]);
       handleOpenInTab({ type: 'pdf', id: pdf.id });
@@ -465,15 +463,16 @@ function App() {
     : null;
 
   const [fetchedNote, setFetchedNote] = useState(null);
+  // Drop the fetched copy as soon as it is no longer needed (note deselected or
+  // present in the loaded list). Adjusting state during render avoids an extra
+  // effect pass.
+  const needsFetchedNote = !!currentNoteId && !notes.some((n) => n.id === currentNoteId);
+  if (!needsFetchedNote && fetchedNote !== null) {
+    setFetchedNote(null);
+  }
   useEffect(() => {
-    if (!currentNoteId) {
-      setFetchedNote(null);
-      return;
-    }
-    if (notes.some((n) => n.id === currentNoteId)) {
-      setFetchedNote(null);
-      return;
-    }
+    if (!currentNoteId) return;
+    if (notes.some((n) => n.id === currentNoteId)) return;
     getNoteById(currentNoteId).then((n) => setFetchedNote(n));
   }, [currentNoteId, notes]);
 
@@ -554,7 +553,7 @@ function App() {
         currentNote={noteToShow}
         selectedFolder={selectedFolder}
         folders={folders}
-        tabs={tabs}
+        tabs={tabsWithLabels}
         activeTabId={activeTabId}
         onTabClick={setActiveTabId}
         onTabClose={handleCloseTab}

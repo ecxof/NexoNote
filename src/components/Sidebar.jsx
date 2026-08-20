@@ -69,13 +69,21 @@ export default function Sidebar({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     if (view === 'editor') {
-      setCollapsed(true);
-    } else {
-      getSettings().then((s) => {
-        if (s.sidebarCollapsed != null) setCollapsed(s.sidebarCollapsed);
+      Promise.resolve().then(() => {
+        if (!cancelled) setCollapsed(true);
       });
+      return () => {
+        cancelled = true;
+      };
     }
+    getSettings().then((s) => {
+      if (!cancelled && s.sidebarCollapsed != null) setCollapsed(s.sidebarCollapsed);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [view]);
 
   const persistWidth = useCallback((w) => {

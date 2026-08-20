@@ -2,7 +2,6 @@
  * Unified hierarchical tree: All Notes + expandable folders with notes nested inside.
  * Pill-style active state (#1A2942), disclosure arrows, indentation.
  */
-import { useState } from 'react';
 import { ChevronRight, ChevronDown, Folder, FileText, FileType, FilePlus, FolderPlus } from 'lucide-react';
 import { NoteItemMenu, PdfItemMenu, FolderItemMenu } from './ItemMenu';
 
@@ -266,71 +265,6 @@ export default function SidebarTree({
           )}
 
           {topLevelFolders.map((folder) => renderFolderNode(folder))}
-          {/* legacy flat list removed in favor of renderFolderNode */ false && folders.map((folder) => {
-            const isExpanded = expandedFolderIds.has(folder.id);
-            const folderNotes = notes.filter((n) => n.folderId === folder.id);
-            return (
-              <li key={folder.id} className="sidebar-tree-item">
-                <div className="sidebar-tree-node-wrap">
-                  <button
-                    type="button"
-                    className="sidebar-tree-chevron-btn"
-                    onClick={(e) => { e.stopPropagation(); onToggleFolder(folder.id); }}
-                    aria-expanded={isExpanded}
-                    aria-label={isExpanded ? 'Collapse' : 'Expand'}
-                  >
-                    {isExpanded ? <ChevronDown size={14} className="sidebar-tree-chevron" /> : <ChevronRight size={14} className="sidebar-tree-chevron" />}
-                  </button>
-                  <button
-                    type="button"
-                    className={`sidebar-tree-node sidebar-tree-node-pill sidebar-tree-node-folder ${isFolderActive(folder.id) ? 'active' : ''}`}
-                    onClick={() => onSelectFolder(folder.id)}
-                  >
-                    <Folder size={16} className="sidebar-tree-icon" />
-                    <span className="sidebar-tree-label">{folder.name}</span>
-                  </button>
-                  <FolderItemMenu
-                    folderId={folder.id}
-                    folderName={folder.name}
-                    onRename={onRenameFolder}
-                    onDelete={onDeleteFolder}
-                    className="sidebar-tree-menu"
-                  />
-                </div>
-                {isExpanded && (
-                  <ul className="sidebar-tree-list sidebar-tree-nested">
-                    {folderNotes.map((note) => (
-                      <li key={note.id} className="sidebar-tree-item">
-                        <div className="sidebar-tree-node-wrap">
-                          <button
-                            type="button"
-                            className={`sidebar-tree-node sidebar-tree-node-pill sidebar-tree-node-note ${isNoteActive(note.id) ? 'active' : ''}`}
-                            onClick={() => onSelectNote(note.id)}
-                          >
-                            <FileText size={14} className="sidebar-tree-icon" />
-                            <span className="sidebar-tree-label">{note.title || 'Untitled'}</span>
-                            <span className="sidebar-tree-meta">{formatDate(note.updatedAt)}</span>
-                          </button>
-                          <NoteItemMenu
-                            noteId={note.id}
-                            noteTitle={note.title || 'Untitled'}
-                            onRename={onRenameNote}
-                            onDelete={onDeleteNote}
-                            onCopy={onCopyNote}
-                            onPaste={onPasteNote}
-                            onMoveNoteToFolder={onMoveNoteToFolder}
-                            canPaste={!!copiedNoteId}
-                            folders={folders}
-                            className="sidebar-tree-menu"
-                          />
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            );
-          })}
         </ul>
       </div>
     </div>

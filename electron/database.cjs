@@ -307,14 +307,17 @@ function syncNoteTags(noteId, tags) {
   }
 }
 
-/** Convert a raw notes row to the shape the renderer expects. */
-function noteToObj(row) {
+/**
+ * Convert a raw notes row to the shape the renderer expects.
+ * Pass a pre-fetched `tags` array to avoid a per-row query (see notesGetAll).
+ */
+function noteToObj(row, tags = undefined) {
   return {
     id:        row.id,
     title:     row.title,
     content:   row.content,
     folderId:  row.folder_id,
-    tags:      getTagsForNote(row.id),
+    tags:      tags !== undefined ? tags : getTagsForNote(row.id),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -353,6 +356,38 @@ function normalizeFlashcardType(type) {
 
 function normalizeDraftStatus(status) {
   return status === 'SAVED' ? 'SAVED' : 'DRAFT';
+}
+
+/**
+ * FIX: normalize MCQ options in one place, computing the correct-option index
+ * AFTER empty options are filtered out. Previously the index was computed
+ * against the unfiltered array, so removing an empty option shifted indices
+ * and the stored correct_option_index could point at the wrong option.
+ *
+ * @param {Array} rawOptions options as sent by the renderer (or existing rows)
+ * @param {number|null|undefined} requestedIndex payload.correctOptionIndex, if given
+ * @returns {{ options: Array<{text:string,isCorrect:boolean,order:number}>, correctIndex: number|null }}
+ */
+function normalizeMcqOptions(rawOptions, requestedIndex) {
+  const source = Array.isArray(rawOptions) ? rawOptions : [];
+  const requested = requestedIndex != null && Number.isFinite(Number(requestedIndex))
+    ? Number(requestedIndex)
+    : source.findIndex((o) => !!o.isCorrect);
+
+  const cleaned = source
+    .map((opt, idx) => ({ text: String(opt.text || '').trim(), sourceIndex: idx }))
+    .filter((o) => o.text.length > 0);
+
+  const correctIndex = cleaned.findIndex((o) => o.sourceIndex === requested);
+
+  return {
+    options: cleaned.map((o, idx) => ({
+      text: o.text,
+      isCorrect: idx === correctIndex,
+      order: idx,
+    })),
+    correctIndex: correctIndex === -1 ? null : correctIndex,
+  };
 }
 
 function flashcardOptionsGet(flashcardId) {
@@ -574,8 +609,19 @@ function applyDifficultyScheduleOverride(sm2, reviewedAtIso, difficulty) {
 // ─── Notes CRUD ─────────────────────────────────────────────────────────────
 
 function notesGetAll() {
+  // FIX (N+1): previously each row triggered a separate tag query via
+  // noteToObj → getTagsForNote. Now all tag links are fetched in one query
+  // and joined in memory.
   const rows = db.prepare('SELECT * FROM notes ORDER BY updated_at DESC').all();
-  return rows.map(noteToObj);
+  const tagRows = db.prepare(
+    'SELECT nt.note_id, t.name FROM note_tags nt JOIN tags t ON t.id = nt.tag_id'
+  ).all();
+  const tagMap = new Map();
+  for (const r of tagRows) {
+    if (!tagMap.has(r.note_id)) tagMap.set(r.note_id, []);
+    tagMap.get(r.note_id).push(r.name);
+  }
+  return rows.map((row) => noteToObj(row, tagMap.get(row.id) || []));
 }
 
 function notesGetById(id) {
@@ -647,12 +693,39 @@ function foldersCreate(name, parentId = null) {
   return { id, name: name || 'New Folder', parentId: parentId || null, createdAt: now };
 }
 
+/**
+ * FIX: guard against folder cycles. Returns true when setting
+ * `candidateParentId` as the parent of `folderId` would create a cycle
+ * (i.e. the candidate parent is the folder itself or one of its descendants).
+ * Bounded walk protects against pre-existing corrupt data.
+ */
+function wouldCreateFolderCycle(folderId, candidateParentId) {
+  if (!candidateParentId) return false;
+  if (candidateParentId === folderId) return true;
+  const getParent = db.prepare('SELECT parent_id FROM folders WHERE id = ?');
+  let current = candidateParentId;
+  let hops = 0;
+  const MAX_HOPS = 1000;
+  while (current && hops < MAX_HOPS) {
+    const row = getParent.get(current);
+    if (!row) return false;
+    if (row.parent_id === folderId) return true;
+    current = row.parent_id;
+    hops += 1;
+  }
+  return hops >= MAX_HOPS; // treat runaway chains as unsafe
+}
+
 function foldersUpdate(id, payload) {
   const row = db.prepare('SELECT * FROM folders WHERE id = ?').get(id);
   if (!row) return null;
 
   const name     = payload.name     !== undefined ? payload.name     : row.name;
   const parentId = payload.parentId !== undefined ? (payload.parentId || null) : row.parent_id;
+
+  if (payload.parentId !== undefined && wouldCreateFolderCycle(id, parentId)) {
+    throw new Error('Cannot move a folder into itself or one of its subfolders');
+  }
 
   db.prepare('UPDATE folders SET name = ?, parent_id = ? WHERE id = ?').run(name, parentId, id);
   return { id, name, parentId, createdAt: row.created_at };
@@ -858,27 +931,18 @@ function flashcardsCreate(payload) {
 
   const prompt = String(payload.prompt || payload.questionText || '').trim();
   const back = String(payload.back || payload.answerText || '').trim();
-  const options = Array.isArray(payload.options) ? payload.options : [];
-  const correctOptionIndex = type === 'mcq'
-    ? (
-      payload.correctOptionIndex != null
-        ? Number(payload.correctOptionIndex)
-        : options.findIndex((o) => !!o.isCorrect)
-    )
-    : null;
+
+  // FIX: index computed after filtering (see normalizeMcqOptions).
+  const { options: normalizedOptions, correctIndex: correctOptionIndex } = type === 'mcq'
+    ? normalizeMcqOptions(payload.options, payload.correctOptionIndex)
+    : { options: [], correctIndex: null };
+
   const correctTf = type === 'true_false'
     ? normalizeTfValue(payload.correctAnswer ?? payload.answerText)
     : null;
-  const normalizedOptions = type === 'mcq'
-    ? options.map((opt, idx) => ({
-      text: String(opt.text || '').trim(),
-      isCorrect: idx === correctOptionIndex,
-      order: Number.isFinite(Number(opt.order)) ? Number(opt.order) : idx,
-    })).filter((opt) => opt.text.length > 0)
-    : [];
   const nextReviewDate = payload.nextReviewDate || now;
   const answerText = type === 'mcq'
-    ? (normalizedOptions[correctOptionIndex]?.text || back || '')
+    ? (correctOptionIndex != null ? normalizedOptions[correctOptionIndex]?.text || back || '' : back || '')
     : type === 'true_false'
       ? (correctTf ? 'True' : 'False')
       : back;
@@ -928,20 +992,12 @@ function flashcardsUpdate(id, payload) {
   const nextOptions = payload.options !== undefined
     ? (Array.isArray(payload.options) ? payload.options : [])
     : existingOptions;
-  const correctOptionIndex = type === 'mcq'
-    ? (
-      payload.correctOptionIndex != null
-        ? Number(payload.correctOptionIndex)
-        : nextOptions.findIndex((o) => !!o.isCorrect)
-    )
-    : null;
-  const normalizedOptions = type === 'mcq'
-    ? nextOptions.map((opt, idx) => ({
-      text: String(opt.text || '').trim(),
-      isCorrect: idx === correctOptionIndex,
-      order: Number.isFinite(Number(opt.order)) ? Number(opt.order) : idx,
-    })).filter((opt) => opt.text.length > 0)
-    : [];
+
+  // FIX: index computed after filtering (see normalizeMcqOptions).
+  const { options: normalizedOptions, correctIndex: correctOptionIndex } = type === 'mcq'
+    ? normalizeMcqOptions(nextOptions, payload.correctOptionIndex)
+    : { options: [], correctIndex: null };
+
   const correctTf = type === 'true_false'
     ? normalizeTfValue(payload.correctAnswer ?? payload.answerText ?? row.correct_answer_bool)
     : null;
@@ -956,7 +1012,7 @@ function flashcardsUpdate(id, payload) {
       ? String(payload.answerText || '').trim()
       : (row.back_text || row.answer_text);
   const answerText = type === 'mcq'
-    ? (normalizedOptions[correctOptionIndex]?.text || back || '')
+    ? (correctOptionIndex != null ? normalizedOptions[correctOptionIndex]?.text || back || '' : back || '')
     : type === 'true_false'
       ? (correctTf ? 'True' : 'False')
       : back;

@@ -1,0 +1,33 @@
+# CI: lint + build on every push/PR to main.
+# better-sqlite3 is rebuilt for Electron by the postinstall hook;
+# ubuntu-latest ships the required build toolchain.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        # Non-blocking until the pre-existing lint errors are cleaned up;
+        # remove continue-on-error once `npm run lint` passes on main.
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Build (renderer)
+        run: npm run build

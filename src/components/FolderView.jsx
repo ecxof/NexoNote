@@ -116,7 +116,6 @@ export default function FolderView({
   const { register, unregister, closeAllExcept } = useContext(ItemMenuContext);
   const folderMenuTriggerRef = useRef(null);
   const folderMenuDropdownRef = useRef(null);
-  const [folderMenuPosition, setFolderMenuPosition] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     if (!folderMenuOpen) return;
@@ -124,6 +123,8 @@ export default function FolderView({
     return () => unregister('folder-view-header-menu');
   }, [folderMenuOpen, register, unregister]);
 
+  // Position the portal dropdown by writing styles directly before paint;
+  // no state round-trip needed.
   useLayoutEffect(() => {
     if (!folderMenuOpen || !folderMenuTriggerRef.current || !folderMenuDropdownRef.current) return;
     const trigger = folderMenuTriggerRef.current.getBoundingClientRect();
@@ -136,7 +137,9 @@ export default function FolderView({
     if (left < 8) left = 8;
     if (top + dropdown.height + 8 > vh) top = trigger.top - dropdown.height - 2;
     if (top < 8) top = 8;
-    setFolderMenuPosition({ top, left });
+    const el = folderMenuDropdownRef.current;
+    el.style.top = `${top}px`;
+    el.style.left = `${left}px`;
   }, [folderMenuOpen]);
 
   const openFolderMenu = () => {
@@ -212,8 +215,8 @@ export default function FolderView({
                     className="item-menu-dropdown item-menu-dropdown-portal folder-view-dropdown"
                     style={{
                       position: 'fixed',
-                      top: folderMenuPosition.top,
-                      left: folderMenuPosition.left,
+                      top: 0,
+                      left: 0,
                       zIndex: 10050,
                       margin: 0,
                     }}

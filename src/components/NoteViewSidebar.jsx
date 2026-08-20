@@ -61,10 +61,16 @@ export default function NoteViewSidebar({
   // Ref to track the last values we actually ran semantic linking for.
   const lastRunRef = useRef({ noteId: null, noteContent: null, notesSignature: null });
 
+  // When there is nothing to link against, clear stale results during render
+  // (state adjustment) instead of a setState round-trip in the effect below.
+  const hasRelatedInputs = !!(note?.id && note?.content && otherNotes.length > 0);
+  if (!hasRelatedInputs && (relatedLinks.length > 0 || relatedError !== null)) {
+    setRelatedLinks([]);
+    setRelatedError(null);
+  }
+
   useEffect(() => {
-    if (!note?.id || !note?.content || otherNotes.length === 0) {
-      setRelatedLinks([]);
-      setRelatedError(null);
+    if (!hasRelatedInputs) {
       onSemanticLinksClearRef.current?.();
       lastRunRef.current = { noteId: null, noteContent: null, notesSignature: null };
       return;
@@ -121,7 +127,7 @@ export default function NoteViewSidebar({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [note?.id, note?.content, otherNotes, otherNotesSignature]);
+  }, [note?.id, note?.content, otherNotes, otherNotesSignature, hasRelatedInputs]);
 
   const [editingValue, setEditingValue] = useState('');
   const [isInputVisible, setIsInputVisible] = useState(false);
@@ -199,10 +205,10 @@ export default function NoteViewSidebar({
     [note, currentNoteTags, onTagsChange]
   );
 
-  useEffect(() => {
-    const max = currentNoteTags.length;
-    setCursorPosition((p) => (p > max ? max : p));
-  }, [currentNoteTags.length]);
+  // Keep the caret inside the tag list when tags are removed (render-time clamp).
+  if (cursorPosition > currentNoteTags.length) {
+    setCursorPosition(currentNoteTags.length);
+  }
 
   useEffect(() => {
     if (!isInputVisible) return;
@@ -210,7 +216,7 @@ export default function NoteViewSidebar({
     const id = setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
-        const len = (editingValue || '').length;
+        const len = inputRef.current.value.length;
         inputRef.current.setSelectionRange(len, len);
       }
     }, 0);
@@ -314,7 +320,6 @@ export default function NoteViewSidebar({
       e.preventDefault();
       setIsInputVisible(false);
       setDropdownOpen(false);
-      if (currentNoteTags.length > 0) setSelectedTagIndex(currentNoteTags.length - 1);
       return;
     }
     if (e.key === 'ArrowDown') {
@@ -498,7 +503,7 @@ export default function NoteViewSidebar({
                   allTags.length === 0 ? (
                     <div className="note-view-sidebar-tag-dropdown-empty">No tags in any note yet.</div>
                   ) : (
-                    allTags.map((t, i) => (
+                    allTags.map((t) => (
                       <div key={t} className="note-view-sidebar-tag-dropdown-item" role="option">
                         <span>{t}</span>
                         {currentNoteTags.includes(t) && (
