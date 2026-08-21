@@ -19,7 +19,7 @@ NexoNote is a desktop note-taking and study companion built with Electron and Re
 - **Tab Bar** - Open multiple notes and PDFs in browser-style tabs
 - **Flashcards** - Flip, multiple-choice, and true/false cards scheduled with the SM-2 spaced-repetition algorithm, plus review sessions and performance analytics
 - **Semantic Linking** - Related notes (TF-IDF), in-editor keyword highlights, and a force-directed semantic graph. See [semantic_linking/README.md](semantic_linking/README.md) for setup
-- **AI Assistant** - In-note chat with Explain This, Summarize, and Quiz Me, backed by Hugging Face
+- **AI Assistant** - In-note chat with Explain This, Summarize, and Quiz Me, backed by Hugging Face. The API token is entered in Settings, so no rebuild is needed
 - **Local Storage** - SQLite in Electron, `localStorage` in the browser. See [Storage](#storage) below
 - **Dark & Light Themes** - Configurable via Settings, applies instantly
 - **Offline-First** - All note data is stored locally. Only the optional AI assistant requires a network connection
@@ -81,11 +81,27 @@ pip install -r backend/requirements.txt
 
 ### AI assistant setup
 
+Open **Settings > AI Assistant** and paste your
+[Hugging Face token](https://huggingface.co/settings/tokens). It is saved with the rest
+of your settings and takes effect immediately, with no rebuild.
+
+Alternatively, for development, set it at build time:
+
 ```bash
 cp .env.example .env
 ```
 
-Then set `VITE_HF_API_TOKEN` in `.env` to your [Hugging Face token](https://huggingface.co/settings/tokens). Requests are proxied through Vite to `https://router.huggingface.co`. Without a token, the rest of the app works normally and only the AI assistant is unavailable.
+Then set `VITE_HF_API_TOKEN` in `.env`. Settings take precedence; the environment
+variable is used only when the Settings field is empty. Note that Vite inlines this
+variable when the bundle is built, so a packaged app cannot pick up a new value from
+`.env`; use the Settings field for installed builds.
+
+Requests are proxied through Vite to `https://router.huggingface.co`. Without a token
+the rest of the app works normally and only the AI assistant is unavailable.
+
+> [!NOTE]
+> The token is stored in plain text alongside your other settings (SQLite in Electron,
+> `localStorage` in the browser) and is sent only to Hugging Face.
 
 ---
 
@@ -280,6 +296,7 @@ npm run lint
 ### Settings
 
 - Auto-save toggle, font size selector, dark/light theme toggle
+- Hugging Face API token for the AI assistant, with show/hide
 
 ---
 
@@ -306,7 +323,7 @@ npm run lint
 - [x] Flashcards with SM-2 spaced repetition (flip, MCQ, true/false)
 - [x] Flashcard performance analytics
 - [x] Semantic linking (TF-IDF related notes + force-directed graph)
-- [x] AI assistant with streaming responses (Hugging Face)
+- [x] AI assistant with streaming responses (Hugging Face), token configurable in Settings
 - [x] Electron packaging via electron-builder (`npm run dist`)
 
 ### Upcoming

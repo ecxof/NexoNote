@@ -3680,6 +3680,62 @@ button.note-card {
   font-family: inherit;
 }
 
+/* --- AI assistant token field --- */
+.settings-token-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.settings-input {
+  padding: 0.5rem 0.75rem;
+  min-width: 260px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.settings-input:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+.settings-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.settings-token-toggle {
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.settings-token-toggle:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+.settings-hint {
+  margin-top: 0.75rem;
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.settings-hint a {
+  color: var(--accent-primary);
+}
+
+.settings-hint code {
+  color: var(--text-secondary);
+}
+
 /* --- Item menu (three-dot on hover) --- */
 .item-menu-wrap {
   position: relative;

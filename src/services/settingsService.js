@@ -1,6 +1,11 @@
 /**
- * Settings service: read/write app settings (auto-save, font size).
+ * Settings service: read/write app settings (auto-save, font size, AI token).
  * Uses Python backend HTTP when URL set, else Electron IPC, else localStorage.
+ *
+ * Note on hfApiToken: it is stored in plain text alongside the other settings
+ * (SQLite in Electron, localStorage in the browser). It is a user-supplied
+ * Hugging Face token for the in-note AI assistant, never transmitted anywhere
+ * except to the Hugging Face router.
  */
 
 import { getBackendClient } from '../apiClient';
@@ -12,13 +17,14 @@ const DEFAULTS = {
   theme: 'dark',
   sidebarWidth: 280,
   sidebarCollapsed: false,
+  hfApiToken: '',
 };
 
 function hasElectron() {
   return typeof window !== 'undefined' && window.electronAPI?.settings;
 }
 
-/** @returns {Promise<{ autoSave: boolean, fontSize: string, theme: string, sidebarWidth: number, sidebarCollapsed: boolean }>} */
+/** @returns {Promise<{ autoSave: boolean, fontSize: string, theme: string, sidebarWidth: number, sidebarCollapsed: boolean, hfApiToken: string }>} */
 export async function getSettings() {
   const backend = await getBackendClient();
   if (backend) {
@@ -39,7 +45,7 @@ export async function getSettings() {
 }
 
 /**
- * @param {{ autoSave?: boolean, fontSize?: string, theme?: string, sidebarWidth?: number, sidebarCollapsed?: boolean }} partial
+ * @param {{ autoSave?: boolean, fontSize?: string, theme?: string, sidebarWidth?: number, sidebarCollapsed?: boolean, hfApiToken?: string }} partial
  * @returns {Promise<{ autoSave: boolean, fontSize: string, theme: string }>}
  */
 export async function updateSettings(partial) {

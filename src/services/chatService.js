@@ -4,9 +4,39 @@
  * Provides streaming chat completions grounded in the current note context.
  */
 
+import { getSettings } from './settingsService';
+
 const HF_API_URL = '/api/hf/v1/chat/completions';
-const HF_API_TOKEN = import.meta.env.VITE_HF_API_TOKEN;
 const MODEL = 'zai-org/GLM-5';
+
+/**
+ * Resolve the Hugging Face token.
+ *
+ * Settings take precedence, then the VITE_HF_API_TOKEN build-time variable.
+ * The env var is inlined by Vite when the bundle is built, so a packaged app
+ * cannot pick up a new one; the Settings field is what makes the assistant
+ * configurable after install. The fallback keeps existing .env setups working.
+ *
+ * @returns {Promise<string>} the token, or '' when none is configured
+ */
+async function resolveToken() {
+  try {
+    const settings = await getSettings();
+    const fromSettings = (settings?.hfApiToken || '').trim();
+    if (fromSettings) return fromSettings;
+  } catch {
+    // Settings unavailable (e.g. storage error) - fall through to the env var.
+  }
+  return (import.meta.env.VITE_HF_API_TOKEN || '').trim();
+}
+
+/** Error thrown when no token is configured, so the UI can point at Settings. */
+function missingTokenError() {
+  return new Error(
+    'No Hugging Face API token configured. Add one in Settings > AI Assistant, ' +
+    'or set VITE_HF_API_TOKEN in your .env file.'
+  );
+}
 
 /**
  * Build the system prompt that grounds the AI in the note context.
@@ -49,6 +79,9 @@ Use this content as context when answering questions. If the student asks about 
  * @returns {Promise<string>} Full response text
  */
 export async function sendChatMessage(messages, noteContent, noteTitle, onChunk, signal) {
+    const token = await resolveToken();
+    if (!token) throw missingTokenError();
+
     const systemPrompt = buildSystemPrompt(noteContent, noteTitle);
 
     const apiMessages = [
@@ -58,7 +91,7 @@ export async function sendChatMessage(messages, noteContent, noteTitle, onChunk,
 
     const headers = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${HF_API_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
     };
 
     const response = await fetch(HF_API_URL, {
@@ -123,11 +156,14 @@ export async function sendChatMessage(messages, noteContent, noteTitle, onChunk,
  * @returns {Promise<string>}
  */
 export async function sendChatMessageSimple(messages, noteContent, noteTitle, signal) {
+    const token = await resolveToken();
+    if (!token) throw missingTokenError();
+
     const systemPrompt = buildSystemPrompt(noteContent, noteTitle);
 
     const headers = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${HF_API_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
     };
 
     const response = await fetch(HF_API_URL, {
