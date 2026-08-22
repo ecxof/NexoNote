@@ -92,38 +92,31 @@ DOMAIN_STOP_WORDS = frozenset({
 # smoothing, a term present in every document still carries an idf of 1.0
 # rather than 0, so it keeps contributing to the similarity.
 #
-# As a proportion the filter is degenerate on a tiny corpus. With a target and
-# a single candidate, every shared term has a document frequency of 1.0, which
-# exceeds any ratio below 1, so the entire shared vocabulary is dropped and the
-# score is always exactly 0 no matter how alike the two notes are.
+# Measured on six notes sharing a header block, target vs. an unrelated note:
 #
-# For small corpora the same filter is therefore applied as an absolute
-# document count with a floor of 2, which keeps the terms the two notes share.
-# The floor is chosen so the two strategies agree exactly from two candidates
-# upward, leaving established scores untouched: at n_docs == 3 the count is
-# int(0.85 * 3) == 2, and for every larger corpus floor(0.85 * n) and 0.85 * n
-# exclude the same integer document frequencies.
+#   max_df=0.85   related 0.276   unrelated 0.000
+#   max_df=1.0    related 0.472   unrelated 0.277 - 0.300
+#
+# At 1.0 a chemistry note scores 0.29 against a backpropagation note, above
+# both the 0.25 sidebar threshold and the 0.20 graph threshold, and the matched
+# keywords fill up with template words. Do not relax this value.
+#
+# KNOWN LIMITATION: as a proportion the filter is degenerate on the smallest
+# possible corpus. With a target and exactly one candidate, every shared term
+# has a document frequency of 1.0, which exceeds any ratio below 1, so the
+# whole shared vocabulary is pruned and the score is exactly 0 however alike
+# the two notes are — identical notes included. A user whose app holds two
+# notes therefore sees an empty Related notes panel. From two candidate notes
+# (three documents) upward the filter behaves normally: a term shared by two
+# of three documents has a ratio of 0.67 and survives.
+#
+# This is left as-is deliberately. Rescuing the two-note case means admitting
+# terms common to the entire corpus, and at that size boilerplate and topic are
+# indistinguishable — both appear in 100% of the documents — so the rescued
+# score would be confidently wrong rather than merely absent. Cold-start
+# emptiness is the more honest failure. See tests/test_semantic_linking.py,
+# which pins this behaviour, and semantic_linking/README.md.
 MAX_DF_RATIO = 0.85
-
-# Candidate-note count at or below which the small-corpus strategy is used.
-SMALL_CORPUS_MAX_NOTES = 2
-
-
-def _max_df_for_corpus(n_candidates: int, n_docs: int):
-    """
-    Pick the max_df value for a corpus of `n_docs` documents.
-
-    Returns a float proportion for normal corpora, which is the long-standing
-    behaviour, and an absolute document count for corpora of
-    SMALL_CORPUS_MAX_NOTES candidate notes or fewer.
-
-    Note that scores from the small-corpus path are less trustworthy than the
-    number suggests: with only two documents there is no way to tell shared
-    boilerplate from a shared topic, because both appear in 100% of the corpus.
-    """
-    if n_candidates > SMALL_CORPUS_MAX_NOTES:
-        return MAX_DF_RATIO
-    return max(2, int(MAX_DF_RATIO * n_docs))
 
 
 class _HTMLTextExtractor(HTMLParser):
@@ -299,8 +292,8 @@ def find_semantic_links(
         Typically built from the notes table: { row["id"]: row["content"] }.
     threshold : float, default 0.25
         Minimum cosine similarity (0–1) to include a note in results.
-        Scores from a corpus of two or three documents come from the
-        small-corpus strategy; see _max_df_for_corpus for its caveats.
+        With exactly one candidate note the score is always 0, so no threshold
+        can admit it; see the document frequency filtering notes above.
     max_results : int or None, default 50
         Maximum number of related notes to return. None = no limit.
     top_keywords : int, default 8
@@ -328,7 +321,7 @@ def find_semantic_links(
 
     vectorizer = TfidfVectorizer(
         analyzer=_analyzer,
-        max_df=_max_df_for_corpus(len(ids), len(all_docs)),
+        max_df=MAX_DF_RATIO,
         min_df=1,
         sublinear_tf=True,
         strip_accents="unicode",

@@ -12,7 +12,6 @@ This package implements **semantic linking** for NexoNote: it analyzes note cont
 2. **Preprocessing** – Remove standard English stop words and a custom _domain stop word_ list (e.g. "note", "summary", "exam", "page", "conclusion") so links are based on domain concepts. Lemmatization reduces words to base form.
 3. **Vectorization** – `TfidfVectorizer` with `max_df=0.85` and `min_df=1` so terms that appear in too many notes are downweighted or ignored.
 4. **Similarity** – Cosine similarity between the target note and all candidate notes.
-   - **Small corpora** – `max_df` is what removes shared boilerplate, but as a proportion it is degenerate below three documents: with a target and one candidate every shared term has a document frequency of 1.0, so all of them are dropped and the score is always 0. For 1–2 candidate notes the filter is applied as an absolute document count with a floor of 2 instead. The two forms agree exactly from two candidates upward, so scores for larger corpora are unchanged.
 5. **Output** – `find_semantic_links(target_note_text, existing_notes_dict, threshold=0.25)` returns a list of `{"note_id", "score"}` for notes above the threshold.
 
 ## Setup
@@ -88,12 +87,35 @@ If no candidate has the dependencies, the sidebar shows which interpreters were 
 npm run test:python
 ```
 
-Runs `tests/test_semantic_linking.py` with the same interpreter the app uses. The suite covers the small-corpus strategy, the contract the callers depend on, and two properties worth keeping:
+Runs `tests/test_semantic_linking.py` with the same interpreter the app uses. The suite covers the contract the callers depend on plus three properties worth keeping:
 
-- **3+ candidate notes score exactly as they did before** the small-corpus path existed, checked against an inline reimplementation of the old `max_df=0.85` scoring.
+- **The two-note limitation stays pinned** — `SmallCorpusLimitation` asserts that a single candidate note yields no link, so the behaviour below is a known property rather than a regression someone rediscovers.
+- **Boilerplate is rejected** — unrelated notes sharing a header block produce no links, and template words never appear in `matched_keywords`. These are what `max_df` buys; they fail if it is relaxed.
 - **Scores stay continuous as the corpus grows** — the same pair of notes never jumps by more than 0.05 between consecutive corpus sizes, never decreases as unrelated notes are added, and the related note keeps its rank.
 
-One test, `test_shared_template_inflates_small_corpus_scores`, pins a known limitation rather than desired behaviour: with a single candidate note there are only two documents, so boilerplate and topic are indistinguishable — both appear in 100% of the corpus. Two unrelated notes sharing a header block score around 0.48, above the 0.25 sidebar threshold. The same pair scores 0 once the corpus is large enough for the proportion filter to recognise the template.
+## Limitations
+
+### Related notes is always empty when you have exactly two notes
+
+With a target note and a single candidate there are only two documents, so every term they share has a document frequency of 1.0. That is above the `max_df=0.85` cut-off, the whole shared vocabulary is pruned, and the similarity is exactly 0 — however alike the notes are. Two identical notes score 0 too. Measured against a related pair:
+
+| Notes in the app | Score for the related pair |
+| --- | --- |
+| 2 | 0.000 |
+| 3 | 0.333 |
+| 4 | 0.349 |
+| 5 | 0.360 |
+| 6 | 0.367 |
+
+From three notes onward the filter behaves normally: a term shared by two of three documents has a ratio of 0.67 and survives.
+
+**This is deliberate, not an oversight.** `max_df` is the only thing preventing shared boilerplate from linking every note to every other one — TF-IDF will not do it alone, because with smoothing a term present in every document still carries an idf of 1.0 rather than 0. Rescuing the two-note case means admitting terms common to the entire corpus, and at that size boilerplate and topic are indistinguishable: both appear in 100% of the documents. The rescued score would be confidently wrong rather than merely absent, and an empty panel is the more honest cold-start failure.
+
+Related: NexoNote has no note templates, and the title and tags are stored in separate columns rather than in `notes.content`. Boilerplate is therefore user-typed prose with no structural marker, so it cannot be stripped before scoring — only identified statistically, which is exactly what `max_df` does and exactly what a two-document corpus cannot support.
+
+### The same pair of notes changes score as the corpus grows
+
+Visible in the table above: the related pair moves from 0.333 to 0.367 as unrelated notes are added. IDF is computed over the whole corpus, so a term's weight depends on how many notes exist. The percentage shown in the sidebar drifts upward over time for an unchanged pair of notes. The drift is bounded and monotonic — `ScoreConsistencyAsCorpusGrows` pins both — but it is not a bug report.
 
 ## Dependencies
 

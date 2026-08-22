@@ -21,7 +21,7 @@ See **[semantic_linking/README.md](semantic_linking/README.md)** for:
 
 - Installing dependencies and NLTK data (`npm run setup:python`)
 - Running the test suite (`npm run test:python`)
-- How corpora of 1-2 notes are scored differently, and why
+- Known limitations, including why Related notes stays empty until you have three notes
 - Example usage of `find_semantic_links`
 - How the Electron app can call this backend (e.g. spawn Python, pass JSON)
 

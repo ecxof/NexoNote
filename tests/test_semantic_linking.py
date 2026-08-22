@@ -1,8 +1,8 @@
 """
 Tests for the semantic linking pipeline.
 
-Focus: the small-corpus scoring strategy, and the guarantee that introducing
-it left scoring for 3+ candidate notes untouched.
+Focus: the documented small-corpus limitation, the boilerplate rejection that
+max_df exists to provide, and the contract the callers depend on.
 
 Run with:  npm run test:python
 """
@@ -18,12 +18,16 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from semantic_linking import find_semantic_links
-from semantic_linking.pipeline import (
-    MAX_DF_RATIO,
-    SMALL_CORPUS_MAX_NOTES,
-    _analyzer,
-    _max_df_for_corpus,
-)
+from semantic_linking.pipeline import MAX_DF_RATIO, _analyzer
+
+# Fewest candidate notes that can produce a non-zero score. Below this the
+# max_df proportion prunes the entire shared vocabulary; see pipeline.py.
+MIN_SCORABLE_CANDIDATES = 2
+
+# The sidebar and the graph pass these; kept in sync with NoteViewSidebar.jsx
+# and SemanticGraphView.jsx so the tests fail if the pipeline drifts under them.
+SIDEBAR_THRESHOLD = 0.25
+GRAPH_THRESHOLD = 0.2
 
 # Two notes on the same topic, and a set of unrelated ones to pad the corpus.
 ML_TARGET = "<p>Backpropagation computes gradients for each layer of a neural network.</p>"
@@ -37,7 +41,9 @@ UNRELATED = [
     "<p>The Treaty of Westphalia ended the Thirty Years War in 1648.</p>",
 ]
 
-# A header block of the kind a student repeats across every note.
+# A header block of the kind a student repeats across every note. NexoNote has
+# no template feature, so boilerplate like this is user-typed prose with no
+# structural marker distinguishing it from content.
 TEMPLATE = (
     "<h1>Study notes</h1><p>Course: CS101. Instructor: Dr Smith. Term: spring. "
     "Tags: coursework, revision, midterm.</p>"
@@ -57,137 +63,116 @@ def score_for(links, note_id):
     return 0.0
 
 
-def legacy_scores(target, candidates):
+class SmallCorpusLimitation(unittest.TestCase):
     """
-    Scoring exactly as it was before the small-corpus strategy existed, with
-    max_df pinned to the 0.85 proportion. Used to prove 3+ corpora are
-    unaffected.
+    A single candidate note cannot be scored, and that is deliberate.
+
+    With two documents every shared term has a document frequency of 1.0, above
+    the max_df proportion, so the shared vocabulary is pruned and the score is
+    always 0. Rescuing it would mean admitting terms common to the whole corpus,
+    where boilerplate and topic are indistinguishable. These tests pin the
+    limitation so it stays a known, documented property rather than a surprise.
     """
-    docs = list(candidates.values())
-    vectorizer = TfidfVectorizer(
-        analyzer=_analyzer,
-        max_df=0.85,
-        min_df=1,
-        sublinear_tf=True,
-        strip_accents="unicode",
-    )
-    matrix = vectorizer.fit_transform([target] + docs)
-    sims = cosine_similarity(matrix[0:1], matrix[1:]).ravel()
-    return dict(zip(candidates.keys(), (round(float(s), 4) for s in sims)))
+
+    def test_single_related_candidate_is_not_linked(self):
+        links = find_semantic_links(
+            ML_TARGET, {"a": ML_RELATED}, threshold=SIDEBAR_THRESHOLD
+        )
+        self.assertEqual(links, [], "a two-note corpus cannot produce a score")
+
+    def test_single_related_candidate_scores_exactly_zero(self):
+        links = find_semantic_links(ML_TARGET, {"a": ML_RELATED}, threshold=0.0)
+        self.assertEqual(score_for(links, "a"), 0.0)
+
+    def test_even_identical_notes_are_not_linked(self):
+        # The starkest form: nothing survives pruning, so the vectorizer has an
+        # empty vocabulary and the pipeline returns nothing at all.
+        links = find_semantic_links(
+            ML_TARGET, {"a": ML_TARGET}, threshold=SIDEBAR_THRESHOLD
+        )
+        self.assertEqual(links, [])
+
+    def test_boilerplate_cannot_manufacture_a_link_either(self):
+        # The upside of the limitation: the two-note case fails closed, so a
+        # shared header cannot produce a false positive.
+        links = find_semantic_links(
+            TEMPLATE + ML_TARGET,
+            {"a": TEMPLATE + UNRELATED[1]},
+            threshold=SIDEBAR_THRESHOLD,
+        )
+        self.assertEqual(links, [])
+
+    def test_two_candidates_score_normally(self):
+        # One note further on, the proportion is no longer degenerate.
+        links = find_semantic_links(
+            ML_TARGET, corpus_of(MIN_SCORABLE_CANDIDATES), threshold=0.0
+        )
+        self.assertGreater(score_for(links, "note-0"), 0.0)
+        self.assertEqual(links[0]["linked_note_id"], "note-0")
 
 
-class MaxDfSelection(unittest.TestCase):
-    """The strategy switch itself, without running the whole pipeline."""
+class BoilerplateRejection(unittest.TestCase):
+    """What max_df is for. Relaxing it breaks these."""
 
-    def test_large_corpus_uses_the_proportion(self):
-        for n_candidates in range(SMALL_CORPUS_MAX_NOTES + 1, 40):
-            with self.subTest(candidates=n_candidates):
-                self.assertEqual(
-                    _max_df_for_corpus(n_candidates, n_candidates + 1), MAX_DF_RATIO
-                )
-
-    def test_small_corpus_uses_an_absolute_count(self):
-        # One candidate: two documents, so a shared term has df == 2 and must
-        # survive. Two candidates: df == 3 still gets dropped, matching 0.85.
-        self.assertEqual(_max_df_for_corpus(1, 2), 2)
-        self.assertEqual(_max_df_for_corpus(2, 3), 2)
-
-    def test_absolute_count_never_drops_a_shared_pair(self):
-        # The floor of 2 is what rescues the degenerate case.
-        self.assertGreaterEqual(_max_df_for_corpus(1, 2), 2)
-
-    def test_strategies_agree_from_two_candidates_upward(self):
-        # floor(0.85 * n) and 0.85 * n must exclude the same integer document
-        # frequencies, otherwise the boundary would shift existing scores.
-        for n_docs in range(3, 200):
-            with self.subTest(n_docs=n_docs):
-                kept_by_ratio = {
-                    df for df in range(1, n_docs + 1) if df <= MAX_DF_RATIO * n_docs
-                }
-                kept_by_count = {
-                    df
-                    for df in range(1, n_docs + 1)
-                    if df <= max(2, int(MAX_DF_RATIO * n_docs))
-                }
-                self.assertEqual(kept_by_ratio, kept_by_count)
-
-
-class SmallCorpusBehaviour(unittest.TestCase):
-    """1-2 candidate notes: the case the proportion could not score."""
-
-    def test_single_related_candidate_is_linked(self):
-        links = find_semantic_links(ML_TARGET, {"a": ML_RELATED}, threshold=0.25)
-        self.assertEqual(len(links), 1, "a related note must link in a two-note corpus")
-        self.assertGreater(links[0]["similarity_score"], 0.25)
-
-    def test_single_unrelated_candidate_is_not_linked(self):
-        links = find_semantic_links(ML_TARGET, {"a": UNRELATED[1]}, threshold=0.25)
+    def test_shared_template_does_not_link_unrelated_notes(self):
+        candidates = {f"note-{i}": TEMPLATE + doc for i, doc in enumerate(UNRELATED[:5])}
+        links = find_semantic_links(
+            TEMPLATE + ML_TARGET, candidates, threshold=GRAPH_THRESHOLD
+        )
         self.assertEqual(
-            links, [], "unrelated notes must not link just because the corpus is small"
+            links, [], "boilerplate must not create links in a normal corpus"
         )
 
-    def test_identical_notes_score_one(self):
-        links = find_semantic_links(ML_TARGET, {"a": ML_TARGET}, threshold=0.25)
-        self.assertAlmostEqual(links[0]["similarity_score"], 1.0, places=3)
-
-    def test_two_candidates_rank_the_related_note_first(self):
-        links = find_semantic_links(
-            ML_TARGET, {"a": ML_RELATED, "b": UNRELATED[1]}, threshold=0.0
+    def test_template_words_are_not_returned_as_keywords(self):
+        candidates = {"note-0": TEMPLATE + ML_RELATED}
+        candidates.update(
+            {f"note-{i + 1}": TEMPLATE + doc for i, doc in enumerate(UNRELATED[:4])}
         )
-        self.assertEqual(links[0]["linked_note_id"], "a")
+        links = find_semantic_links(TEMPLATE + ML_TARGET, candidates, threshold=0.0)
+        keywords = set(links[0]["matched_keywords"])
+        for template_word in ("smith", "course", "term", "revision", "midterm"):
+            self.assertNotIn(template_word, keywords)
 
-    def test_matched_keywords_are_returned(self):
-        links = find_semantic_links(ML_TARGET, {"a": ML_RELATED}, threshold=0.25)
-        keywords = links[0]["matched_keywords"]
-        self.assertTrue(keywords)
-        self.assertIn("neural", keywords)
+    def test_max_df_ratio_is_not_relaxed(self):
+        # A guard on the constant itself: at 1.0 unrelated notes sharing a
+        # header score around 0.29, above both thresholds.
+        self.assertLess(MAX_DF_RATIO, 1.0)
 
-    def test_shared_template_inflates_small_corpus_scores(self):
-        """
-        Documents a known limitation rather than desired behaviour.
 
-        With one candidate there are only two documents, so boilerplate and
-        topic are indistinguishable: both appear in 100% of the corpus. Two
-        unrelated notes that share a header therefore score above the
-        threshold. The same pair scores 0 once the corpus is large enough for
-        the proportion filter to identify the template, which
-        LargeCorpusUnchanged asserts.
-        """
-        links = find_semantic_links(
-            TEMPLATE + ML_TARGET, {"a": TEMPLATE + UNRELATED[1]}, threshold=0.25
+class ScoringParametersDoNotDrift(unittest.TestCase):
+    """Pins the vectorizer configuration that every score depends on."""
+
+    @staticmethod
+    def reference_scores(target, candidates):
+        docs = list(candidates.values())
+        vectorizer = TfidfVectorizer(
+            analyzer=_analyzer,
+            max_df=0.85,
+            min_df=1,
+            sublinear_tf=True,
+            strip_accents="unicode",
         )
-        self.assertTrue(links, "expected the documented false positive")
-        self.assertGreater(links[0]["similarity_score"], 0.25)
+        matrix = vectorizer.fit_transform([target] + docs)
+        sims = cosine_similarity(matrix[0:1], matrix[1:]).ravel()
+        return dict(zip(candidates.keys(), (round(float(s), 4) for s in sims)))
 
-
-class LargeCorpusUnchanged(unittest.TestCase):
-    """3+ candidate notes must score exactly as they did before."""
-
-    def test_scores_match_the_legacy_implementation(self):
-        for n_candidates in range(SMALL_CORPUS_MAX_NOTES + 1, 8):
+    def test_scores_match_the_reference_configuration(self):
+        for n_candidates in range(MIN_SCORABLE_CANDIDATES, 8):
             with self.subTest(candidates=n_candidates):
                 candidates = corpus_of(n_candidates)
                 actual = {
                     link["linked_note_id"]: link["similarity_score"]
                     for link in find_semantic_links(ML_TARGET, candidates, threshold=0.0)
                 }
-                expected = legacy_scores(ML_TARGET, candidates)
-                for note_id, expected_score in expected.items():
+                for note_id, expected in self.reference_scores(
+                    ML_TARGET, candidates
+                ).items():
                     self.assertAlmostEqual(
                         actual.get(note_id, 0.0),
-                        expected_score,
+                        expected,
                         places=4,
                         msg=f"score drifted for {note_id} at {n_candidates} candidates",
                     )
-
-    def test_shared_template_does_not_link_unrelated_notes(self):
-        # The counterpart to the small-corpus limitation: with enough notes the
-        # template is recognised and contributes nothing.
-        candidates = {f"note-{i}": TEMPLATE + doc for i, doc in enumerate(UNRELATED[:5])}
-        links = find_semantic_links(TEMPLATE + ML_TARGET, candidates, threshold=0.2)
-        self.assertEqual(
-            links, [], "boilerplate must not create links in a normal corpus"
-        )
 
 
 class ScoreConsistencyAsCorpusGrows(unittest.TestCase):
@@ -195,7 +180,7 @@ class ScoreConsistencyAsCorpusGrows(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.sizes = list(range(1, len(UNRELATED) + 2))
+        cls.sizes = list(range(MIN_SCORABLE_CANDIDATES, len(UNRELATED) + 2))
         cls.scores = []
         for n_candidates in cls.sizes:
             links = find_semantic_links(
@@ -214,9 +199,7 @@ class ScoreConsistencyAsCorpusGrows(unittest.TestCase):
                 self.assertGreaterEqual(score, 0.0)
                 self.assertLessEqual(score, 1.0)
 
-    def test_no_discontinuity_at_the_strategy_boundary(self):
-        # Crossing from the small-corpus path to the proportion must not move
-        # the score more than ordinary corpus growth does.
+    def test_no_discontinuity_as_the_corpus_grows(self):
         for i in range(1, len(self.scores)):
             delta = abs(self.scores[i] - self.scores[i - 1])
             with self.subTest(step=f"{self.sizes[i - 1]}->{self.sizes[i]}"):
@@ -235,7 +218,7 @@ class ScoreConsistencyAsCorpusGrows(unittest.TestCase):
                 self.assertGreaterEqual(self.scores[i], self.scores[i - 1] - 1e-9)
 
     def test_related_note_outranks_unrelated_at_every_size(self):
-        for n_candidates in self.sizes[1:]:
+        for n_candidates in self.sizes:
             with self.subTest(candidates=n_candidates):
                 links = find_semantic_links(
                     ML_TARGET, corpus_of(n_candidates), threshold=0.0
@@ -269,15 +252,22 @@ class Contract(unittest.TestCase):
         scores = [link["similarity_score"] for link in links]
         self.assertEqual(scores, sorted(scores, reverse=True))
 
+    def test_matched_keywords_are_returned(self):
+        links = find_semantic_links(ML_TARGET, corpus_of(4), threshold=0.0)
+        keywords = links[0]["matched_keywords"]
+        self.assertTrue(keywords)
+        self.assertIn("neural", keywords)
+
     def test_html_is_stripped_before_scoring(self):
-        plain = find_semantic_links(ML_TARGET, {"a": ML_RELATED}, threshold=0.0)
-        wrapped = find_semantic_links(
-            ML_TARGET,
-            {"a": f"<div><em>{ML_RELATED}</em></div>"},
-            threshold=0.0,
-        )
+        candidates = corpus_of(4)
+        wrapped = dict(candidates)
+        wrapped["note-0"] = f"<div><em>{candidates['note-0']}</em></div>"
+        plain_links = find_semantic_links(ML_TARGET, candidates, threshold=0.0)
+        wrapped_links = find_semantic_links(ML_TARGET, wrapped, threshold=0.0)
         self.assertAlmostEqual(
-            plain[0]["similarity_score"], wrapped[0]["similarity_score"], places=4
+            score_for(plain_links, "note-0"),
+            score_for(wrapped_links, "note-0"),
+            places=4,
         )
 
 
