@@ -22,12 +22,45 @@ try:
     from nltk.stem import WordNetLemmatizer
     from nltk.tokenize import word_tokenize
 
+    # Resource id -> the path nltk.data.find uses to locate it.
+    # word_tokenize needs punkt_tab on nltk >= 3.9; punkt alone is not enough.
+    _NLTK_RESOURCES = (
+        ("punkt", "tokenizers/punkt"),
+        ("punkt_tab", "tokenizers/punkt_tab"),
+        ("stopwords", "corpora/stopwords"),
+        ("wordnet", "corpora/wordnet"),
+    )
+
+    _nltk_data_ready = False
+
     def _ensure_nltk_data():
-        for resource in ("punkt", "stopwords", "wordnet"):
+        """
+        Download any missing corpora once per process.
+
+        Checked before downloading so an already-provisioned machine (e.g. one
+        set up with `npm run setup:python`) never touches the network, and the
+        check runs once rather than on every tokenized document.
+        """
+        global _nltk_data_ready
+        if _nltk_data_ready:
+            return
+        for resource, lookup_path in _NLTK_RESOURCES:
+            try:
+                nltk.data.find(lookup_path)
+                continue
+            except LookupError:
+                pass
+            # Corpora are also resolvable as zip archives.
+            try:
+                nltk.data.find(lookup_path + ".zip")
+                continue
+            except LookupError:
+                pass
             try:
                 nltk.download(resource, quiet=True)
             except Exception:
                 pass
+        _nltk_data_ready = True
 
     _NLTK_AVAILABLE = True
 except ImportError:
