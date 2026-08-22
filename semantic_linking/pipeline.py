@@ -22,12 +22,45 @@ try:
     from nltk.stem import WordNetLemmatizer
     from nltk.tokenize import word_tokenize
 
+    # Resource id -> the path nltk.data.find uses to locate it.
+    # word_tokenize needs punkt_tab on nltk >= 3.9; punkt alone is not enough.
+    _NLTK_RESOURCES = (
+        ("punkt", "tokenizers/punkt"),
+        ("punkt_tab", "tokenizers/punkt_tab"),
+        ("stopwords", "corpora/stopwords"),
+        ("wordnet", "corpora/wordnet"),
+    )
+
+    _nltk_data_ready = False
+
     def _ensure_nltk_data():
-        for resource in ("punkt", "stopwords", "wordnet"):
+        """
+        Download any missing corpora once per process.
+
+        Checked before downloading so an already-provisioned machine (e.g. one
+        set up with `npm run setup:python`) never touches the network, and the
+        check runs once rather than on every tokenized document.
+        """
+        global _nltk_data_ready
+        if _nltk_data_ready:
+            return
+        for resource, lookup_path in _NLTK_RESOURCES:
+            try:
+                nltk.data.find(lookup_path)
+                continue
+            except LookupError:
+                pass
+            # Corpora are also resolvable as zip archives.
+            try:
+                nltk.data.find(lookup_path + ".zip")
+                continue
+            except LookupError:
+                pass
             try:
                 nltk.download(resource, quiet=True)
             except Exception:
                 pass
+        _nltk_data_ready = True
 
     _NLTK_AVAILABLE = True
 except ImportError:
@@ -50,6 +83,40 @@ DOMAIN_STOP_WORDS = frozenset({
     "new", "old", "same", "different", "other", "another", "same", "following",
     "above", "below", "here", "there", "today", "tomorrow", "week", "day", "time",
 })
+
+
+# ─── Document frequency filtering ────────────────────────────────────────────
+# max_df drops terms that appear in too many notes. That is what stops shared
+# boilerplate — course headers, templates, a recurring title block — from
+# linking every note to every other one, and TF-IDF alone will not do it: with
+# smoothing, a term present in every document still carries an idf of 1.0
+# rather than 0, so it keeps contributing to the similarity.
+#
+# Measured on six notes sharing a header block, target vs. an unrelated note:
+#
+#   max_df=0.85   related 0.276   unrelated 0.000
+#   max_df=1.0    related 0.472   unrelated 0.277 - 0.300
+#
+# At 1.0 a chemistry note scores 0.29 against a backpropagation note, above
+# both the 0.25 sidebar threshold and the 0.20 graph threshold, and the matched
+# keywords fill up with template words. Do not relax this value.
+#
+# KNOWN LIMITATION: as a proportion the filter is degenerate on the smallest
+# possible corpus. With a target and exactly one candidate, every shared term
+# has a document frequency of 1.0, which exceeds any ratio below 1, so the
+# whole shared vocabulary is pruned and the score is exactly 0 however alike
+# the two notes are — identical notes included. A user whose app holds two
+# notes therefore sees an empty Related notes panel. From two candidate notes
+# (three documents) upward the filter behaves normally: a term shared by two
+# of three documents has a ratio of 0.67 and survives.
+#
+# This is left as-is deliberately. Rescuing the two-note case means admitting
+# terms common to the entire corpus, and at that size boilerplate and topic are
+# indistinguishable — both appear in 100% of the documents — so the rescued
+# score would be confidently wrong rather than merely absent. Cold-start
+# emptiness is the more honest failure. See tests/test_semantic_linking.py,
+# which pins this behaviour, and semantic_linking/README.md.
+MAX_DF_RATIO = 0.85
 
 
 class _HTMLTextExtractor(HTMLParser):
@@ -225,6 +292,8 @@ def find_semantic_links(
         Typically built from the notes table: { row["id"]: row["content"] }.
     threshold : float, default 0.25
         Minimum cosine similarity (0–1) to include a note in results.
+        With exactly one candidate note the score is always 0, so no threshold
+        can admit it; see the document frequency filtering notes above.
     max_results : int or None, default 50
         Maximum number of related notes to return. None = no limit.
     top_keywords : int, default 8
@@ -252,7 +321,7 @@ def find_semantic_links(
 
     vectorizer = TfidfVectorizer(
         analyzer=_analyzer,
-        max_df=0.85,
+        max_df=MAX_DF_RATIO,
         min_df=1,
         sublinear_tf=True,
         strip_accents="unicode",

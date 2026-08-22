@@ -19,8 +19,9 @@ Semantic linking automatically suggests **conceptually related notes** based on 
 
 See **[semantic_linking/README.md](semantic_linking/README.md)** for:
 
-- Installing dependencies (`pip install -r semantic_linking/requirements.txt`)
-- Downloading NLTK data (punkt, stopwords, wordnet)
+- Installing dependencies and NLTK data (`npm run setup:python`)
+- Running the test suite (`npm run test:python`)
+- Known limitations, including why Related notes stays empty until you have three notes
 - Example usage of `find_semantic_links`
 - How the Electron app can call this backend (e.g. spawn Python, pass JSON)
 

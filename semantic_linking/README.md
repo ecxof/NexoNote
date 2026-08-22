@@ -17,11 +17,18 @@ This package implements **semantic linking** for NexoNote: it analyzes note cont
 ## Setup
 
 ```bash
-# From project root
-pip install -r semantic_linking/requirements.txt
+npm run setup:python
+```
 
-# First run: download NLTK data (punkt, stopwords, wordnet)
-python -m nltk.downloader punkt stopwords wordnet
+From the project root. This creates a `.venv`, installs `requirements.txt` into it, downloads the NLTK corpora (`punkt`, `punkt_tab`, `stopwords`, `wordnet`), and smoke-tests the pipeline. Rerunning is safe; `-- --force` rebuilds the virtualenv.
+
+`punkt_tab` matters: `word_tokenize` requires it on NLTK 3.9+, where `punkt` alone is no longer enough.
+
+To install by hand instead, use any Python and point the app at it with `NEXONOTE_SEMANTIC_PYTHON`:
+
+```bash
+pip install -r semantic_linking/requirements.txt
+python -m nltk.downloader punkt punkt_tab stopwords wordnet
 ```
 
 ## Usage
@@ -43,22 +50,72 @@ links = find_semantic_links(target, existing, threshold=0.25)
 
 ## Running in the live app
 
-### Browser (localhost:5173)
+### Browser
 
-Start the Python HTTP server so the React app can request related notes:
+`npm run dev` starts Vite and the semantic linking server together, so no second terminal is needed:
 
 ```bash
-# From project root, in a separate terminal
-pip install -r semantic_linking/requirements.txt
-python -m nltk.downloader punkt stopwords wordnet   # first time only
+npm run dev
+```
+
+The server runs at **http://127.0.0.1:5000**. Open a note and the left sidebar shows **Related notes** with clickable links to similar notes.
+
+If Python is not set up, the server is skipped with a note explaining why and Vite still starts — the rest of the app works without it. Use `npm run dev:vite` to start Vite alone.
+
+To run the server by itself:
+
+```bash
 python -m semantic_linking.server
 ```
 
-The server runs at **http://127.0.0.1:5000**. Then run the app with `npm run dev` and open a note; the left sidebar shows **Related notes** with clickable links to similar notes.
-
 ### Electron
 
-No server needed. The main process spawns the Python CLI (`semantic_linking/cli.py`) when the sidebar requests related notes. Ensure Python is on your PATH and the project has the `semantic_linking` package and dependencies installed.
+No server needed. The main process spawns the Python CLI (`semantic_linking/cli.py`) when the sidebar requests related notes.
+
+Electron picks the interpreter by probing candidates in order and keeping the first one that can `import sklearn, nltk`:
+
+1. `$NEXONOTE_SEMANTIC_PYTHON`, if set (full path to a Python executable)
+2. `.venv/Scripts/python.exe` (Windows) or `.venv/bin/python`, if a project-local virtualenv exists
+3. `py -3` on Windows, `python3` elsewhere
+4. `python`
+
+If no candidate has the dependencies, the sidebar shows which interpreters were tried and why each was rejected, along with the command to fix it. Running `npm run setup:python` and reopening the sidebar is enough — no app restart needed.
+
+## Tests
+
+```bash
+npm run test:python
+```
+
+Runs `tests/test_semantic_linking.py` with the same interpreter the app uses. The suite covers the contract the callers depend on plus three properties worth keeping:
+
+- **The two-note limitation stays pinned** — `SmallCorpusLimitation` asserts that a single candidate note yields no link, so the behaviour below is a known property rather than a regression someone rediscovers.
+- **Boilerplate is rejected** — unrelated notes sharing a header block produce no links, and template words never appear in `matched_keywords`. These are what `max_df` buys; they fail if it is relaxed.
+- **Scores stay continuous as the corpus grows** — the same pair of notes never jumps by more than 0.05 between consecutive corpus sizes, never decreases as unrelated notes are added, and the related note keeps its rank.
+
+## Limitations
+
+### Related notes is always empty when you have exactly two notes
+
+With a target note and a single candidate there are only two documents, so every term they share has a document frequency of 1.0. That is above the `max_df=0.85` cut-off, the whole shared vocabulary is pruned, and the similarity is exactly 0 — however alike the notes are. Two identical notes score 0 too. Measured against a related pair:
+
+| Notes in the app | Score for the related pair |
+| --- | --- |
+| 2 | 0.000 |
+| 3 | 0.333 |
+| 4 | 0.349 |
+| 5 | 0.360 |
+| 6 | 0.367 |
+
+From three notes onward the filter behaves normally: a term shared by two of three documents has a ratio of 0.67 and survives.
+
+**This is deliberate, not an oversight.** `max_df` is the only thing preventing shared boilerplate from linking every note to every other one — TF-IDF will not do it alone, because with smoothing a term present in every document still carries an idf of 1.0 rather than 0. Rescuing the two-note case means admitting terms common to the entire corpus, and at that size boilerplate and topic are indistinguishable: both appear in 100% of the documents. The rescued score would be confidently wrong rather than merely absent, and an empty panel is the more honest cold-start failure.
+
+Related: NexoNote has no note templates, and the title and tags are stored in separate columns rather than in `notes.content`. Boilerplate is therefore user-typed prose with no structural marker, so it cannot be stripped before scoring — only identified statistically, which is exactly what `max_df` does and exactly what a two-document corpus cannot support.
+
+### The same pair of notes changes score as the corpus grows
+
+Visible in the table above: the related pair moves from 0.333 to 0.367 as unrelated notes are added. IDF is computed over the whole corpus, so a term's weight depends on how many notes exist. The percentage shown in the sidebar drifts upward over time for an unchanged pair of notes. The drift is bounded and monotonic — `ScoreConsistencyAsCorpusGrows` pins both — but it is not a bug report.
 
 ## Dependencies
 

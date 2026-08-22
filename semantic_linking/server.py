@@ -5,6 +5,7 @@ Run: python -m semantic_linking.server  (or python semantic_linking/server.py)
 Then the React app at http://localhost:5173 can POST to http://localhost:5000/find-links.
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -17,12 +18,18 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Allow requests from Vite dev server
+# Allow requests from the Vite dev server on any port. Vite runs with
+# strictPort disabled, so it moves to 5174+ whenever 5173 is taken, and pinning
+# a single port here silently breaks those sessions with a CORS error.
+_LOCAL_ORIGIN = re.compile(r"^http://(?:localhost|127\.0\.0\.1)(?::\d+)?$")
+
+
 @app.after_request
 def cors(resp):
     origin = request.headers.get("Origin")
-    if origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+    if origin and _LOCAL_ORIGIN.match(origin):
         resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
     resp.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
     return resp

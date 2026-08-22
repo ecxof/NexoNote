@@ -12,6 +12,15 @@ const { spawn } = require('child_process');
 const http = require('http');
 const { pathToFileURL } = require('url');
 const database = require('./database.cjs');
+const {
+  PROJECT_ROOT,
+  SEMANTIC_MODULES,
+  BACKEND_MODULES,
+  resolvePython,
+  forgetPython,
+  explainSemanticError,
+  pythonSetupHint,
+} = require('./python-env.cjs');
 
 // FIX: previously `process.env.NODE_ENV !== 'production' || !app.isPackaged`,
 // which is always true in a packaged app (NODE_ENV is unset there), so the
@@ -107,21 +116,28 @@ function waitForHealth(baseUrl, timeoutMs = 10000) {
   });
 }
 
-function startPythonBackend() {
+async function startPythonBackend() {
+  const { interpreter, tried } = await resolvePython(
+    'backend',
+    BACKEND_MODULES,
+    process.env.NEXONOTE_BACKEND_PYTHON
+  );
+  if (!interpreter) {
+    console.warn(pythonSetupHint('FastAPI backend', tried));
+    return null;
+  }
   return new Promise((resolve) => {
     const port = process.env.NEXONOTE_BACKEND_PORT || '8765';
     const baseUrl = `http://127.0.0.1:${port}`;
-    const projectRoot = path.join(__dirname, '..');
     const env = {
       ...process.env,
       NEXONOTE_DATA_DIR: DATA_DIR,
       NEXONOTE_BACKEND_PORT: port,
     };
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
     const child = spawn(
-      pythonCmd,
-      ['-m', 'uvicorn', 'backend.main:app', '--host', '127.0.0.1', '--port', port],
-      { cwd: projectRoot, env, stdio: ['ignore', 'pipe', 'pipe'] }
+      interpreter.cmd,
+      [...interpreter.args, '-m', 'uvicorn', 'backend.main:app', '--host', '127.0.0.1', '--port', port],
+      { cwd: PROJECT_ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] }
     );
     pythonProcess = child;
     child.on('error', () => {
@@ -206,8 +222,6 @@ app.whenReady().then(async () => {
 
   // Semantic linking: Python CLI (independent of data backend)
   ipcMain.handle('semantic-links:find', async (_, payload) => {
-    const projectRoot = path.join(__dirname, '..');
-    const pythonEnv = process.env.NEXONOTE_SEMANTIC_PYTHON;
     const input = JSON.stringify({
       target_content: payload.target_content ?? '',
       notes: payload.notes ?? [],
@@ -215,39 +229,45 @@ app.whenReady().then(async () => {
       max_results: payload.max_results ?? 50,
       top_keywords: payload.top_keywords ?? 8,
     });
-    const opts = { cwd: projectRoot, stdio: ['pipe', 'pipe', 'pipe'] };
-    return new Promise((resolve) => {
-      const run = (pythonCmd, args) => {
-        const proc = spawn(pythonCmd, args, opts);
-        let stdout = '';
-        let stderr = '';
-        proc.stdout.on('data', (chunk) => { stdout += chunk; });
-        proc.stderr.on('data', (chunk) => { stderr += chunk; });
-        proc.on('error', (err) => {
-          if (err.code === 'ENOENT' && process.platform === 'win32' && pythonCmd === 'py') {
-            run('python', ['-m', 'semantic_linking.cli']);
-            return;
-          }
-          resolve({ error: err.message || 'Failed to run Python' });
-        });
-        proc.on('close', (code) => {
-          try {
-            const data = JSON.parse(stdout || '{}');
-            if (data.error) resolve({ error: data.error });
-            else resolve({ links: data.links ?? [] });
-          } catch {
-            resolve({ error: stderr || stdout || (code !== 0 ? `Exit ${code}` : 'Invalid response') });
-          }
-        });
-        proc.stdin.write(input, () => proc.stdin.end());
+
+    const { interpreter, tried } = await resolvePython(
+      'semantic',
+      SEMANTIC_MODULES,
+      process.env.NEXONOTE_SEMANTIC_PYTHON
+    );
+    if (!interpreter) {
+      return {
+        error: pythonSetupHint('semantic linking', tried),
       };
-      if (pythonEnv) {
-        run(pythonEnv, ['-m', 'semantic_linking.cli']);
-      } else if (process.platform === 'win32') {
-        run('py', ['-3.13', '-m', 'semantic_linking.cli']);
-      } else {
-        run('python3', ['-m', 'semantic_linking.cli']);
-      }
+    }
+
+    return new Promise((resolve) => {
+      const proc = spawn(
+        interpreter.cmd,
+        [...interpreter.args, '-m', 'semantic_linking.cli'],
+        { cwd: PROJECT_ROOT, stdio: ['pipe', 'pipe', 'pipe'] }
+      );
+      let stdout = '';
+      let stderr = '';
+      proc.stdout.on('data', (chunk) => { stdout += chunk; });
+      proc.stderr.on('data', (chunk) => { stderr += chunk; });
+      proc.on('error', (err) => {
+        // The interpreter passed the probe, so this is a spawn failure, not a
+        // missing Python. Drop the cache entry so the next call re-resolves.
+        forgetPython('semantic');
+        resolve({ error: err.message || 'Failed to run Python' });
+      });
+      proc.on('close', (code) => {
+        try {
+          const data = JSON.parse(stdout || '{}');
+          if (data.error) resolve({ error: explainSemanticError(data.error) });
+          else resolve({ links: data.links ?? [] });
+        } catch {
+          const raw = stderr || stdout || (code !== 0 ? `Exit ${code}` : 'Invalid response');
+          resolve({ error: explainSemanticError(raw) });
+        }
+      });
+      proc.stdin.write(input, () => proc.stdin.end());
     });
   });
 

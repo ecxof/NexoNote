@@ -29,3 +29,12 @@ dist-ssr
 .env.*
 !.env.example
 
+
+# Python virtualenv
+.venv
+venv
+__pycache__/
+*.pyc
+
+# Claude Code local config
+.claude/

@@ -19,7 +19,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import ForceGraph2D from "react-force-graph-2d";
 import { X, ExternalLink, CreditCard, Clock, Network } from "lucide-react";
-import { findSemanticLinks } from "../services/semanticLinkingService";
+import { findSemanticLinks, MIN_NOTES_FOR_LINKS } from "../services/semanticLinkingService";
 import { getFlashcards } from "../services/flashcardService";
 
 // ─── Canvas helpers ────────────────────────────────────────────────────────────
@@ -90,7 +90,10 @@ export default function SemanticGraphView({
     () => (notes || []).filter((n) => n.id !== noteId),
     [notes, noteId],
   );
-  const canFetchLinks = !!noteId && otherNotes.length > 0;
+  // Below MIN_NOTES_FOR_LINKS every score is 0 by construction; see the
+  // constant for why. No point spending a Python spawn to learn that.
+  const hasEnoughNotesForLinks = otherNotes.length + 1 >= MIN_NOTES_FOR_LINKS;
+  const canFetchLinks = !!noteId && hasEnoughNotesForLinks;
 
   // Track the fetch inputs during render: flip the loading flag on when they
   // change (a fetch is about to start) and off when there is nothing to fetch,
@@ -402,6 +405,12 @@ export default function SemanticGraphView({
             </div>
           ) : fetchError ? (
             <div className="sgv-state-msg sgv-state-error">{fetchError}</div>
+          ) : !hasEnoughNotesForLinks ? (
+            <div className="sgv-state-msg">
+              A semantic graph needs at least {MIN_NOTES_FOR_LINKS} notes to
+              compare — you have {otherNotes.length + 1}. Add another note and
+              reopen this view.
+            </div>
           ) : graphData.nodes.length <= 1 ? (
             <div className="sgv-state-msg">
               No related notes found yet. Add more notes with shared domain

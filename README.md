@@ -59,6 +59,7 @@ cd NexoNote
 npm install
 
 # Start development server (browser; notes stored in localStorage)
+# Also starts the semantic linking server when Python is set up
 npm run dev
 
 # Or run as Electron desktop app (notes stored in SQLite)
@@ -70,14 +71,31 @@ npm run electron:dev
 
 ### Optional Python setup
 
-```bash
-# Semantic linking (TF-IDF related notes + graph)
-pip install -r semantic_linking/requirements.txt
-python -m nltk.downloader punkt stopwords wordnet
+Semantic linking and the FastAPI backend need Python. One command sets both up:
 
-# FastAPI backend (alternative to the built-in Node/SQLite backend)
-pip install -r backend/requirements.txt
+```bash
+npm run setup:python
 ```
+
+It creates a project-local `.venv`, installs both requirement files into it, downloads the NLTK corpora, and finishes by running the semantic linking pipeline once to prove it works. It is safe to rerun; pass `-- --force` to rebuild the virtualenv from scratch, or `-- --no-backend` to skip the FastAPI dependencies.
+
+Once it is set up, `npm run test:python` runs the semantic linking test suite.
+
+Both `npm run dev` and Electron pick up that `.venv` automatically, so there is nothing to activate. To use a Python you manage yourself, set `NEXONOTE_SEMANTIC_PYTHON` (or `NEXONOTE_BACKEND_PYTHON`) to its full path and skip the setup command.
+
+<details>
+<summary>How the interpreter is chosen</summary>
+
+Candidates are probed in order and the first that can import the required packages wins:
+
+1. `$NEXONOTE_SEMANTIC_PYTHON` / `$NEXONOTE_BACKEND_PYTHON`
+2. the project-local `.venv`
+3. `py -3` on Windows, `python3` elsewhere
+4. `python`
+
+If none qualify, the error names every interpreter tried and why each was rejected. Nothing is hardcoded to a specific Python version.
+
+</details>
 
 ### AI assistant setup
 

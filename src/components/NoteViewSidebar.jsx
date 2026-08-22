@@ -3,7 +3,7 @@
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { ArrowLeft, Tag, GitBranch, List, Plus, Map, PanelLeftClose, Pencil, Trash2, Link2, Loader2 } from 'lucide-react';
-import { findSemanticLinks } from '../services/semanticLinkingService';
+import { findSemanticLinks, MIN_NOTES_FOR_LINKS } from '../services/semanticLinkingService';
 
 /** Extract headings and their text; works even when headings contain nested tags (e.g. bold/italic). */
 function extractHeadings(html) {
@@ -61,9 +61,13 @@ export default function NoteViewSidebar({
   // Ref to track the last values we actually ran semantic linking for.
   const lastRunRef = useRef({ noteId: null, noteContent: null, notesSignature: null });
 
+  // Below MIN_NOTES_FOR_LINKS every score is 0 by construction, so there is
+  // nothing to ask the pipeline for. Skipping saves a Python spawn per edit.
+  const hasEnoughNotesForLinks = otherNotes.length + 1 >= MIN_NOTES_FOR_LINKS;
+
   // When there is nothing to link against, clear stale results during render
   // (state adjustment) instead of a setState round-trip in the effect below.
-  const hasRelatedInputs = !!(note?.id && note?.content && otherNotes.length > 0);
+  const hasRelatedInputs = !!(note?.id && note?.content && hasEnoughNotesForLinks);
   if (!hasRelatedInputs && (relatedLinks.length > 0 || relatedError !== null)) {
     setRelatedLinks([]);
     setRelatedError(null);
@@ -560,7 +564,11 @@ export default function NoteViewSidebar({
           {!relatedLoading && !relatedError && (
             <ul className="note-view-sidebar-related-list">
               {relatedLinks.length === 0 ? (
-                <li className="note-view-sidebar-placeholder">No related notes found.</li>
+                <li className="note-view-sidebar-placeholder">
+                  {note?.id && !hasEnoughNotesForLinks
+                    ? `Related notes need at least ${MIN_NOTES_FOR_LINKS} notes to compare — you have ${otherNotes.length + 1}.`
+                    : 'No related notes found.'}
+                </li>
               ) : (
                 relatedLinks.map((link) => {
                   const linkedId = link.linked_note_id ?? link.note_id;
