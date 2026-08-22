@@ -32,7 +32,7 @@
     "@tiptap/pm": "^3.19.0",
     "@tiptap/react": "^3.19.0",
     "@tiptap/starter-kit": "^3.19.0",
-    "better-sqlite3": "^12.6.2",
+    "better-sqlite3": "^13.0.3",
     "lucide-react": "^0.563.0",
     "nanoid": "^5.0.9",
     "react": "^19.2.0",

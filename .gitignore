@@ -36,5 +36,7 @@ venv
 __pycache__/
 *.pyc
 
-# Claude Code local config
+# Local assistant/editor workspace
 .claude/
+.claude.json
+.cursor/
