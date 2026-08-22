@@ -4630,6 +4630,26 @@ button.note-card {
   gap: 0.35rem;
 }
 
+.flashcards-view-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.flashcards-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.flashcards-add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .flashcards-view-title {
   font-size: 2.2rem;
   margin: 0;

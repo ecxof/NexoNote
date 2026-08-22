@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Pencil, Search, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { deleteFlashcard, getFlashcardLibrary, getFlashcards } from '../services/flashcardService';
 import FlashcardManualModal from './FlashcardManualModal';
 
@@ -28,6 +28,7 @@ export default function FlashcardsView({ notes = [], refreshKey = 0, onStartRevi
   const [cards, setCards] = useState([]);
   const [library, setLibrary] = useState([]);
   const [editingCard, setEditingCard] = useState(null);
+  const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -102,6 +103,15 @@ export default function FlashcardsView({ notes = [], refreshKey = 0, onStartRevi
     });
   }, [cards, library, search, activeFilter]);
 
+  async function reloadCards() {
+    const [libraryList, list] = await Promise.all([
+      getFlashcardLibrary(),
+      getFlashcards({ status: 'SAVED' }),
+    ]);
+    setLibrary(libraryList);
+    setCards(list);
+  }
+
   async function handleDeleteCard(cardId) {
     await deleteFlashcard(cardId);
     setCards((prev) => prev.filter((c) => c.id !== cardId));
@@ -111,8 +121,24 @@ export default function FlashcardsView({ notes = [], refreshKey = 0, onStartRevi
   return (
     <section className="flashcards-view">
       <header className="flashcards-view-header">
-        <h1 className="flashcards-view-title">Flashcards</h1>
-        <p className="flashcards-view-subtitle">Flashcards are grouped by note.</p>
+        <div className="flashcards-view-heading">
+          <div>
+            <h1 className="flashcards-view-title">Flashcards</h1>
+            <p className="flashcards-view-subtitle">Flashcards are grouped by note.</p>
+          </div>
+          <button
+            type="button"
+            className="btn-primary flashcards-add-btn"
+            onClick={() => setCreating(true)}
+            disabled={notes.length === 0}
+            title={notes.length === 0
+              ? 'Create a note first: every flashcard belongs to one'
+              : undefined}
+          >
+            <Plus size={16} />
+            Add Flashcard
+          </button>
+        </div>
       </header>
 
       <div className="flashcards-toolbar">
@@ -145,7 +171,7 @@ export default function FlashcardsView({ notes = [], refreshKey = 0, onStartRevi
           <div className="flashcard-empty-state"><p>Loading flashcards...</p></div>
         ) : grouped.length === 0 ? (
           <div className="flashcard-empty-state">
-            <p>No flashcards yet. Create cards from note view.</p>
+            <p>No flashcards yet. Use Add Flashcard above, or create them from a note.</p>
           </div>
         ) : (
           grouped.map((noteSet) => {
@@ -222,20 +248,27 @@ export default function FlashcardsView({ notes = [], refreshKey = 0, onStartRevi
           })
         )}
       </div>
+      {creating && (
+        <FlashcardManualModal
+          note={null}
+          notes={notes}
+          onClose={() => setCreating(false)}
+          onSaved={async () => {
+            onLibraryChanged?.();
+            await reloadCards();
+          }}
+        />
+      )}
       {editingCard && (
         <FlashcardManualModal
           note={notes.find((n) => n.id === editingCard.sourceNoteId) || null}
+          notes={notes}
           editingCard={editingCard}
           onClose={() => setEditingCard(null)}
           onSaved={async () => {
             setEditingCard(null);
             onLibraryChanged?.();
-            const [libraryList, list] = await Promise.all([
-              getFlashcardLibrary(),
-              getFlashcards({ status: 'SAVED' }),
-            ]);
-            setLibrary(libraryList);
-            setCards(list);
+            await reloadCards();
           }}
         />
       )}

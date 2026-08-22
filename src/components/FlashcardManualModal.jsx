@@ -11,11 +11,20 @@ const TYPES = [
 
 export default function FlashcardManualModal({
   note,
+  notes = [],
   editingCard = null,
   onClose,
   onSaved,
 }) {
   const isEditing = Boolean(editingCard?.id);
+  // Opened from the Flashcards view there is no note in context, so the source
+  // note has to be chosen here. Every card needs one: notes.id is a NOT NULL
+  // foreign key on the flashcards table.
+  const needsNotePicker = !isEditing && !note?.id;
+  const [pickedNoteId, setPickedNoteId] = useState('');
+  const sourceNote = note?.id
+    ? note
+    : notes.find((n) => n.id === pickedNoteId) || null;
   const [type, setType] = useState(editingCard?.type || 'flip');
   const [prompt, setPrompt] = useState(editingCard?.prompt || '');
   const [back, setBack] = useState(editingCard?.back || '');
@@ -74,8 +83,8 @@ export default function FlashcardManualModal({
   }
 
   async function handleSave(closeAfterSave = true) {
-    if (!isEditing && !note?.id) {
-      setError('A source note is required.');
+    if (!isEditing && !sourceNote?.id) {
+      setError(needsNotePicker ? 'Select a source note.' : 'A source note is required.');
       return;
     }
     if (!prompt.trim()) {
@@ -100,9 +109,9 @@ export default function FlashcardManualModal({
     setError('');
     setSaving(true);
     const payload = {
-      noteId: note?.id || editingCard?.sourceNoteId,
-      sourceNoteId: note?.id || editingCard?.sourceNoteId,
-      topicId: note?.folderId || editingCard?.topicId || null,
+      noteId: sourceNote?.id || editingCard?.sourceNoteId,
+      sourceNoteId: sourceNote?.id || editingCard?.sourceNoteId,
+      topicId: sourceNote?.folderId || editingCard?.topicId || null,
       type,
       prompt: prompt.trim(),
       back: type === 'mcq'
@@ -151,6 +160,22 @@ export default function FlashcardManualModal({
         </div>
 
         <div className="flashcard-modal-body">
+          {needsNotePicker && (
+            <label className="flashcard-form-label">
+              Source note
+              <select
+                className="modal-input"
+                value={pickedNoteId}
+                onChange={(e) => setPickedNoteId(e.target.value)}
+              >
+                <option value="">Select a note...</option>
+                {notes.map((n) => (
+                  <option key={n.id} value={n.id}>{n.title || 'Untitled'}</option>
+                ))}
+              </select>
+            </label>
+          )}
+
           <div className="flashcard-create-types">
             {TYPES.map((entry) => (
               <button
