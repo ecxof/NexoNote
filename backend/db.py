@@ -45,7 +45,9 @@ def init() -> None:
     global _conn
     if DATA_DIR:
         os.makedirs(DATA_DIR, exist_ok=True)
-    _conn = sqlite3.connect(DB_PATH)
+    elif DB_PATH and DB_PATH != ":memory:":
+        os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
+    _conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     _conn.row_factory = sqlite3.Row
     _conn.execute("PRAGMA journal_mode = WAL")
     _conn.execute("PRAGMA foreign_keys = ON")
