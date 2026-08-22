@@ -85,6 +85,47 @@ DOMAIN_STOP_WORDS = frozenset({
 })
 
 
+# ─── Document frequency filtering ────────────────────────────────────────────
+# max_df drops terms that appear in too many notes. That is what stops shared
+# boilerplate — course headers, templates, a recurring title block — from
+# linking every note to every other one, and TF-IDF alone will not do it: with
+# smoothing, a term present in every document still carries an idf of 1.0
+# rather than 0, so it keeps contributing to the similarity.
+#
+# As a proportion the filter is degenerate on a tiny corpus. With a target and
+# a single candidate, every shared term has a document frequency of 1.0, which
+# exceeds any ratio below 1, so the entire shared vocabulary is dropped and the
+# score is always exactly 0 no matter how alike the two notes are.
+#
+# For small corpora the same filter is therefore applied as an absolute
+# document count with a floor of 2, which keeps the terms the two notes share.
+# The floor is chosen so the two strategies agree exactly from two candidates
+# upward, leaving established scores untouched: at n_docs == 3 the count is
+# int(0.85 * 3) == 2, and for every larger corpus floor(0.85 * n) and 0.85 * n
+# exclude the same integer document frequencies.
+MAX_DF_RATIO = 0.85
+
+# Candidate-note count at or below which the small-corpus strategy is used.
+SMALL_CORPUS_MAX_NOTES = 2
+
+
+def _max_df_for_corpus(n_candidates: int, n_docs: int):
+    """
+    Pick the max_df value for a corpus of `n_docs` documents.
+
+    Returns a float proportion for normal corpora, which is the long-standing
+    behaviour, and an absolute document count for corpora of
+    SMALL_CORPUS_MAX_NOTES candidate notes or fewer.
+
+    Note that scores from the small-corpus path are less trustworthy than the
+    number suggests: with only two documents there is no way to tell shared
+    boilerplate from a shared topic, because both appear in 100% of the corpus.
+    """
+    if n_candidates > SMALL_CORPUS_MAX_NOTES:
+        return MAX_DF_RATIO
+    return max(2, int(MAX_DF_RATIO * n_docs))
+
+
 class _HTMLTextExtractor(HTMLParser):
     """Strip HTML tags and extract plain text."""
 
@@ -258,6 +299,8 @@ def find_semantic_links(
         Typically built from the notes table: { row["id"]: row["content"] }.
     threshold : float, default 0.25
         Minimum cosine similarity (0–1) to include a note in results.
+        Scores from a corpus of two or three documents come from the
+        small-corpus strategy; see _max_df_for_corpus for its caveats.
     max_results : int or None, default 50
         Maximum number of related notes to return. None = no limit.
     top_keywords : int, default 8
@@ -285,7 +328,7 @@ def find_semantic_links(
 
     vectorizer = TfidfVectorizer(
         analyzer=_analyzer,
-        max_df=0.85,
+        max_df=_max_df_for_corpus(len(ids), len(all_docs)),
         min_df=1,
         sublinear_tf=True,
         strip_accents="unicode",

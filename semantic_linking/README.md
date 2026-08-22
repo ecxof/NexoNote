@@ -12,6 +12,7 @@ This package implements **semantic linking** for NexoNote: it analyzes note cont
 2. **Preprocessing** – Remove standard English stop words and a custom _domain stop word_ list (e.g. "note", "summary", "exam", "page", "conclusion") so links are based on domain concepts. Lemmatization reduces words to base form.
 3. **Vectorization** – `TfidfVectorizer` with `max_df=0.85` and `min_df=1` so terms that appear in too many notes are downweighted or ignored.
 4. **Similarity** – Cosine similarity between the target note and all candidate notes.
+   - **Small corpora** – `max_df` is what removes shared boilerplate, but as a proportion it is degenerate below three documents: with a target and one candidate every shared term has a document frequency of 1.0, so all of them are dropped and the score is always 0. For 1–2 candidate notes the filter is applied as an absolute document count with a floor of 2 instead. The two forms agree exactly from two candidates upward, so scores for larger corpora are unchanged.
 5. **Output** – `find_semantic_links(target_note_text, existing_notes_dict, threshold=0.25)` returns a list of `{"note_id", "score"}` for notes above the threshold.
 
 ## Setup
@@ -80,6 +81,19 @@ Electron picks the interpreter by probing candidates in order and keeping the fi
 4. `python`
 
 If no candidate has the dependencies, the sidebar shows which interpreters were tried and why each was rejected, along with the command to fix it. Running `npm run setup:python` and reopening the sidebar is enough — no app restart needed.
+
+## Tests
+
+```bash
+npm run test:python
+```
+
+Runs `tests/test_semantic_linking.py` with the same interpreter the app uses. The suite covers the small-corpus strategy, the contract the callers depend on, and two properties worth keeping:
+
+- **3+ candidate notes score exactly as they did before** the small-corpus path existed, checked against an inline reimplementation of the old `max_df=0.85` scoring.
+- **Scores stay continuous as the corpus grows** — the same pair of notes never jumps by more than 0.05 between consecutive corpus sizes, never decreases as unrelated notes are added, and the related note keeps its rank.
+
+One test, `test_shared_template_inflates_small_corpus_scores`, pins a known limitation rather than desired behaviour: with a single candidate note there are only two documents, so boilerplate and topic are indistinguishable — both appear in 100% of the corpus. Two unrelated notes sharing a header block score around 0.48, above the 0.25 sidebar threshold. The same pair scores 0 once the corpus is large enough for the proportion filter to recognise the template.
 
 ## Dependencies
 
