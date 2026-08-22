@@ -79,6 +79,8 @@ python -m nltk.downloader punkt stopwords wordnet
 pip install -r backend/requirements.txt
 ```
 
+Electron finds a Python by probing `$NEXONOTE_SEMANTIC_PYTHON` (or `$NEXONOTE_BACKEND_PYTHON`), then a project-local `.venv`, then `py -3` / `python3`, then `python`, keeping the first that can import the required packages. If none can, the error names every interpreter it tried and why. A `.venv` at the project root is picked up automatically and is the surest way to guarantee `pip` and Electron agree on the same interpreter.
+
 ### AI assistant setup
 
 ```bash

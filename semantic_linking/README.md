@@ -58,7 +58,24 @@ The server runs at **http://127.0.0.1:5000**. Then run the app with `npm run dev
 
 ### Electron
 
-No server needed. The main process spawns the Python CLI (`semantic_linking/cli.py`) when the sidebar requests related notes. Ensure Python is on your PATH and the project has the `semantic_linking` package and dependencies installed.
+No server needed. The main process spawns the Python CLI (`semantic_linking/cli.py`) when the sidebar requests related notes.
+
+Electron picks the interpreter by probing candidates in order and keeping the first one that can `import sklearn, nltk`:
+
+1. `$NEXONOTE_SEMANTIC_PYTHON`, if set (full path to a Python executable)
+2. `.venv/Scripts/python.exe` (Windows) or `.venv/bin/python`, if a project-local virtualenv exists
+3. `py -3` on Windows, `python3` elsewhere
+4. `python`
+
+If no candidate has the dependencies, the sidebar shows which interpreters were tried and why each was rejected, along with the `pip install` command to fix it. Installing the dependencies and reopening the sidebar is enough — no app restart needed.
+
+A virtualenv keeps this unambiguous, since it removes any doubt about which interpreter `pip` installed into:
+
+```bash
+python -m venv .venv
+.venv/Scripts/python -m pip install -r semantic_linking/requirements.txt   # Windows
+.venv/bin/python -m pip install -r semantic_linking/requirements.txt       # macOS / Linux
+```
 
 ## Dependencies
 
