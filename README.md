@@ -79,6 +79,8 @@ npm run setup:python
 
 It creates a project-local `.venv`, installs both requirement files into it, downloads the NLTK corpora, and finishes by running the semantic linking pipeline once to prove it works. It is safe to rerun; pass `-- --force` to rebuild the virtualenv from scratch, or `-- --no-backend` to skip the FastAPI dependencies.
 
+Once it is set up, `npm run test:python` runs the semantic linking test suite.
+
 Both `npm run dev` and Electron pick up that `.venv` automatically, so there is nothing to activate. To use a Python you manage yourself, set `NEXONOTE_SEMANTIC_PYTHON` (or `NEXONOTE_BACKEND_PYTHON`) to its full path and skip the setup command.
 
 <details>

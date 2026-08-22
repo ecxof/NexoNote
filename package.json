@@ -8,6 +8,7 @@
     "dev": "concurrently -n vite,semantic -c cyan,magenta \"vite\" \"node scripts/start-semantic-server.cjs\"",
     "dev:vite": "vite",
     "setup:python": "node scripts/setup-python.cjs",
+    "test:python": "node scripts/run-python-tests.cjs",
     "electron:dev": "concurrently \"vite\" \"wait-on http://127.0.0.1:5173 && npx electron .\"",
     "build": "vite build",
     "lint": "eslint .",
