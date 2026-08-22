@@ -12,6 +12,15 @@ const { spawn } = require('child_process');
 const http = require('http');
 const { pathToFileURL } = require('url');
 const database = require('./database.cjs');
+const {
+  PROJECT_ROOT,
+  SEMANTIC_MODULES,
+  BACKEND_MODULES,
+  resolvePython,
+  forgetPython,
+  explainSemanticError,
+  pythonSetupHint,
+} = require('./python-env.cjs');
 
 // FIX: previously `process.env.NODE_ENV !== 'production' || !app.isPackaged`,
 // which is always true in a packaged app (NODE_ENV is unset there), so the
@@ -107,137 +116,6 @@ function waitForHealth(baseUrl, timeoutMs = 10000) {
   });
 }
 
-// ─── Python interpreter resolution ───────────────────────────────────────────
-// Machines expose Python under different commands, and the Windows `py` launcher
-// exits non-zero (rather than ENOENT) when the requested version is absent, so a
-// hardcoded command has no chance to fall back. Probe candidates once per required
-// module set, keep the first that can import everything, and remember why the
-// others were rejected so the renderer can show an actionable message.
-const PROJECT_ROOT = path.join(__dirname, '..');
-const PYTHON_PROBE_TIMEOUT_MS = 10000;
-// Failed lookups are cached only briefly, so installing the dependencies and
-// retrying works without restarting the app.
-const PYTHON_FAILURE_TTL_MS = 30000;
-const SEMANTIC_MODULES = ['sklearn', 'nltk'];
-const BACKEND_MODULES = ['uvicorn', 'fastapi'];
-
-const pythonResolutionCache = new Map();
-const pythonProbesInFlight = new Map();
-
-function pythonCandidates(envOverride) {
-  const candidates = [];
-  if (envOverride) candidates.push({ cmd: envOverride, args: [] });
-  const venvPython = process.platform === 'win32'
-    ? path.join(PROJECT_ROOT, '.venv', 'Scripts', 'python.exe')
-    : path.join(PROJECT_ROOT, '.venv', 'bin', 'python');
-  if (fs.existsSync(venvPython)) candidates.push({ cmd: venvPython, args: [] });
-  if (process.platform === 'win32') {
-    candidates.push({ cmd: 'py', args: ['-3'] });
-    candidates.push({ cmd: 'python', args: [] });
-  } else {
-    candidates.push({ cmd: 'python3', args: [] });
-    candidates.push({ cmd: 'python', args: [] });
-  }
-  return candidates;
-}
-
-function describeInterpreter({ cmd, args }) {
-  return [cmd, ...args].join(' ');
-}
-
-function summarizePythonError(stderr, code) {
-  const missing = /No module named '([^']+)'/.exec(stderr);
-  if (missing) return `missing ${missing[1]}`;
-  if (/No suitable Python runtime/i.test(stderr)) return 'no matching runtime';
-  const lastLine = stderr.trim().split(/\r?\n/).filter(Boolean).pop();
-  return lastLine || `exit ${code}`;
-}
-
-// Resolve a candidate that can import every module in `modules`.
-function probePython(candidate, modules) {
-  return new Promise((resolve) => {
-    const args = [...candidate.args, '-c', `import ${modules.join(', ')}`];
-    let proc;
-    try {
-      proc = spawn(candidate.cmd, args, { cwd: PROJECT_ROOT, stdio: ['ignore', 'ignore', 'pipe'] });
-    } catch (err) {
-      resolve({ ok: false, reason: err.message });
-      return;
-    }
-    let stderr = '';
-    let settled = false;
-    const finish = (result) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve(result);
-    };
-    const timer = setTimeout(() => {
-      try { proc.kill(); } catch (_) {}
-      finish({ ok: false, reason: 'timed out' });
-    }, PYTHON_PROBE_TIMEOUT_MS);
-    proc.stderr?.on('data', (chunk) => { stderr += chunk; });
-    proc.on('error', (err) => {
-      finish({ ok: false, reason: err.code === 'ENOENT' ? 'not found' : err.message });
-    });
-    proc.on('close', (code) => {
-      finish(code === 0 ? { ok: true } : { ok: false, reason: summarizePythonError(stderr, code) });
-    });
-  });
-}
-
-async function resolvePython(key, modules, envOverride) {
-  const cached = pythonResolutionCache.get(key);
-  if (cached && (cached.interpreter || Date.now() - cached.at < PYTHON_FAILURE_TTL_MS)) {
-    return cached;
-  }
-  // The sidebar and the graph view can both ask for links at once; share one
-  // probe between them rather than spawning the candidate list twice.
-  const inFlight = pythonProbesInFlight.get(key);
-  if (inFlight) return inFlight;
-  const probe = probeAllCandidates(key, modules, envOverride);
-  pythonProbesInFlight.set(key, probe);
-  try {
-    return await probe;
-  } finally {
-    pythonProbesInFlight.delete(key);
-  }
-}
-
-async function probeAllCandidates(key, modules, envOverride) {
-  const tried = [];
-  for (const candidate of pythonCandidates(envOverride)) {
-    const result = await probePython(candidate, modules);
-    if (result.ok) {
-      const resolved = { interpreter: candidate, tried, at: Date.now() };
-      pythonResolutionCache.set(key, resolved);
-      return resolved;
-    }
-    tried.push(`${describeInterpreter(candidate)} (${result.reason})`);
-  }
-  const resolved = { interpreter: null, tried, at: Date.now() };
-  pythonResolutionCache.set(key, resolved);
-  return resolved;
-}
-
-// The pipeline downloads its NLTK corpora on demand, which fails silently when
-// the machine is offline and only surfaces as a LookupError further down.
-function explainSemanticError(message) {
-  const text = String(message || '').trim();
-  if (/Resource\s+\S+\s+not found|LookupError|nltk\.download/i.test(text)) {
-    return `${text}\n\nThe NLTK data files are missing.`
-      + ` Download them once with "python -m nltk.downloader punkt stopwords wordnet".`;
-  }
-  return text || 'Semantic linking failed';
-}
-
-function pythonSetupHint(what, requirements, envVar, tried) {
-  const attempts = tried.length ? ` Tried: ${tried.join('; ')}.` : '';
-  return `No Python installation with the ${what} dependencies was found.${attempts}`
-    + ` Install them with "python -m pip install -r ${requirements}",`
-    + ` or set ${envVar} to the full path of a Python that has them.`;
-}
-
 async function startPythonBackend() {
   const { interpreter, tried } = await resolvePython(
     'backend',
@@ -245,7 +123,7 @@ async function startPythonBackend() {
     process.env.NEXONOTE_BACKEND_PYTHON
   );
   if (!interpreter) {
-    console.warn(pythonSetupHint('FastAPI backend', 'backend/requirements.txt', 'NEXONOTE_BACKEND_PYTHON', tried));
+    console.warn(pythonSetupHint('FastAPI backend', tried));
     return null;
   }
   return new Promise((resolve) => {
@@ -359,12 +237,7 @@ app.whenReady().then(async () => {
     );
     if (!interpreter) {
       return {
-        error: pythonSetupHint(
-          'semantic linking',
-          'semantic_linking/requirements.txt',
-          'NEXONOTE_SEMANTIC_PYTHON',
-          tried
-        ),
+        error: pythonSetupHint('semantic linking', tried),
       };
     }
 
@@ -381,7 +254,7 @@ app.whenReady().then(async () => {
       proc.on('error', (err) => {
         // The interpreter passed the probe, so this is a spawn failure, not a
         // missing Python. Drop the cache entry so the next call re-resolves.
-        pythonResolutionCache.delete('semantic');
+        forgetPython('semantic');
         resolve({ error: err.message || 'Failed to run Python' });
       });
       proc.on('close', (code) => {
