@@ -24,10 +24,7 @@ jobs:
         run: npm ci
 
       - name: Lint
-        # Non-blocking until the pre-existing lint errors are cleaned up;
-        # remove continue-on-error once `npm run lint` passes on main.
         run: npm run lint
-        continue-on-error: true
 
       - name: Build (renderer)
         run: npm run build
