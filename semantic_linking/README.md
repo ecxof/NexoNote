@@ -17,11 +17,18 @@ This package implements **semantic linking** for NexoNote: it analyzes note cont
 ## Setup
 
 ```bash
-# From project root
-pip install -r semantic_linking/requirements.txt
+npm run setup:python
+```
 
-# First run: download NLTK data (punkt, stopwords, wordnet)
-python -m nltk.downloader punkt stopwords wordnet
+From the project root. This creates a `.venv`, installs `requirements.txt` into it, downloads the NLTK corpora (`punkt`, `punkt_tab`, `stopwords`, `wordnet`), and smoke-tests the pipeline. Rerunning is safe; `-- --force` rebuilds the virtualenv.
+
+`punkt_tab` matters: `word_tokenize` requires it on NLTK 3.9+, where `punkt` alone is no longer enough.
+
+To install by hand instead, use any Python and point the app at it with `NEXONOTE_SEMANTIC_PYTHON`:
+
+```bash
+pip install -r semantic_linking/requirements.txt
+python -m nltk.downloader punkt punkt_tab stopwords wordnet
 ```
 
 ## Usage
@@ -43,18 +50,23 @@ links = find_semantic_links(target, existing, threshold=0.25)
 
 ## Running in the live app
 
-### Browser (localhost:5173)
+### Browser
 
-Start the Python HTTP server so the React app can request related notes:
+`npm run dev` starts Vite and the semantic linking server together, so no second terminal is needed:
 
 ```bash
-# From project root, in a separate terminal
-pip install -r semantic_linking/requirements.txt
-python -m nltk.downloader punkt stopwords wordnet   # first time only
-python -m semantic_linking.server
+npm run dev
 ```
 
-The server runs at **http://127.0.0.1:5000**. Then run the app with `npm run dev` and open a note; the left sidebar shows **Related notes** with clickable links to similar notes.
+The server runs at **http://127.0.0.1:5000**. Open a note and the left sidebar shows **Related notes** with clickable links to similar notes.
+
+If Python is not set up, the server is skipped with a note explaining why and Vite still starts — the rest of the app works without it. Use `npm run dev:vite` to start Vite alone.
+
+To run the server by itself:
+
+```bash
+python -m semantic_linking.server
+```
 
 ### Electron
 
@@ -67,15 +79,7 @@ Electron picks the interpreter by probing candidates in order and keeping the fi
 3. `py -3` on Windows, `python3` elsewhere
 4. `python`
 
-If no candidate has the dependencies, the sidebar shows which interpreters were tried and why each was rejected, along with the `pip install` command to fix it. Installing the dependencies and reopening the sidebar is enough — no app restart needed.
-
-A virtualenv keeps this unambiguous, since it removes any doubt about which interpreter `pip` installed into:
-
-```bash
-python -m venv .venv
-.venv/Scripts/python -m pip install -r semantic_linking/requirements.txt   # Windows
-.venv/bin/python -m pip install -r semantic_linking/requirements.txt       # macOS / Linux
-```
+If no candidate has the dependencies, the sidebar shows which interpreters were tried and why each was rejected, along with the command to fix it. Running `npm run setup:python` and reopening the sidebar is enough — no app restart needed.
 
 ## Dependencies
 

@@ -19,8 +19,7 @@ Semantic linking automatically suggests **conceptually related notes** based on 
 
 See **[semantic_linking/README.md](semantic_linking/README.md)** for:
 
-- Installing dependencies (`pip install -r semantic_linking/requirements.txt`)
-- Downloading NLTK data (punkt, stopwords, wordnet)
+- Installing dependencies and NLTK data (`npm run setup:python`)
 - Example usage of `find_semantic_links`
 - How the Electron app can call this backend (e.g. spawn Python, pass JSON)
 
