@@ -41,7 +41,85 @@ let useNodeBackend = true;
 // Must be registered before app is ready.
 protocol.registerSchemesAsPrivileged([
   { scheme: 'nexopdf', privileges: { secure: true, supportFetchAPI: true, stream: true } },
+  // standard: parse nexohf://host/path like a normal URL. corsEnabled plus the
+  // Access-Control-Allow-Origin below let the file:// renderer fetch it, since
+  // a packaged page is a different origin from the scheme.
+  { scheme: 'nexohf', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true, bypassCSP: true } },
 ]);
+
+// Custom protocol for the AI assistant's Hugging Face calls.
+//
+// In dev the renderer is served by Vite, whose proxy forwards /api/hf to the
+// Hugging Face router. A packaged app loads over file://, where that proxy does
+// not exist and a relative request resolves to file:///api/hf, so the assistant
+// could not work once installed. Calling the router directly from the renderer
+// is not an option either: a file:// page sends Origin "null" and is refused.
+//
+// The main process has no such restriction, so it forwards the request with
+// net.fetch and hands the streaming response straight back to the renderer.
+const HF_ROUTER_ORIGIN = 'https://router.huggingface.co';
+// Only these reach the network; the scheme is not a general-purpose proxy.
+const HF_ALLOWED_PATHS = ['/v1/chat/completions'];
+
+function registerHuggingFaceProtocol() {
+  protocol.handle('nexohf', async (request) => {
+    let url;
+    try {
+      url = new URL(request.url);
+    } catch {
+      return new Response('Bad request', { status: 400 });
+    }
+    // The renderer is a different origin from this scheme, so preflight first.
+    const CORS = {
+      'access-control-allow-origin': '*',
+      'access-control-allow-methods': 'POST, OPTIONS',
+      'access-control-allow-headers': 'authorization, content-type',
+    };
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: CORS });
+    }
+    if (!HF_ALLOWED_PATHS.includes(url.pathname)) {
+      return new Response('Not found', { status: 404, headers: CORS });
+    }
+
+    // Forward only what the API needs. The token stays in the Authorization
+    // header the renderer set; the main process never stores or logs it.
+    const headers = new Headers();
+    for (const name of ['authorization', 'content-type', 'accept']) {
+      const value = request.headers.get(name);
+      if (value) headers.set(name, value);
+    }
+
+    let body;
+    try {
+      body = await request.arrayBuffer();
+    } catch {
+      return new Response('Unreadable request body', { status: 400 });
+    }
+
+    try {
+      const upstream = await net.fetch(`${HF_ROUTER_ORIGIN}${url.pathname}${url.search}`, {
+        method: request.method,
+        headers,
+        body: request.method === 'GET' || request.method === 'HEAD' ? undefined : body,
+      });
+      // Pass the body through unbuffered so token streaming still works.
+      return new Response(upstream.body, {
+        status: upstream.status,
+        statusText: upstream.statusText,
+        headers: {
+          ...CORS,
+          'content-type': upstream.headers.get('content-type') || 'application/json',
+        },
+      });
+    } catch (err) {
+      return new Response(
+        JSON.stringify({ error: { message: err?.message || 'Upstream request failed' } }),
+        { status: 502, headers: { ...CORS, 'content-type': 'application/json' } }
+      );
+    }
+  });
+}
 
 function registerPdfProtocol() {
   protocol.handle('nexopdf', async (request) => {
@@ -219,6 +297,7 @@ app.whenReady().then(async () => {
   }
 
   registerPdfProtocol();
+  registerHuggingFaceProtocol();
 
   // Semantic linking: Python CLI (independent of data backend)
   ipcMain.handle('semantic-links:find', async (_, payload) => {

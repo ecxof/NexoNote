@@ -6,7 +6,23 @@
 
 import { getSettings } from './settingsService';
 
-const HF_API_URL = '/api/hf/v1/chat/completions';
+/**
+ * Where to send the chat request.
+ *
+ * Dev: Vite proxies /api/hf to the Hugging Face router (see vite.config.js).
+ * Packaged Electron: no proxy exists and the page is loaded over file://, so a
+ * relative path resolves to file:///api/hf. The nexohf:// scheme is handled in
+ * the main process, which forwards to the router and streams the reply back.
+ * Plain browser production build: call the router directly, which requires the
+ * host to allow the origin.
+ */
+function hfApiUrl() {
+  if (import.meta.env.DEV) return '/api/hf/v1/chat/completions';
+  const isElectron = typeof window !== 'undefined' && !!window.electronAPI;
+  return isElectron
+    ? 'nexohf://router/v1/chat/completions'
+    : 'https://router.huggingface.co/v1/chat/completions';
+}
 const MODEL = 'zai-org/GLM-5';
 
 /**
@@ -94,7 +110,7 @@ export async function sendChatMessage(messages, noteContent, noteTitle, onChunk,
         'Authorization': `Bearer ${token}`,
     };
 
-    const response = await fetch(HF_API_URL, {
+    const response = await fetch(hfApiUrl(), {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -166,7 +182,7 @@ export async function sendChatMessageSimple(messages, noteContent, noteTitle, si
         'Authorization': `Bearer ${token}`,
     };
 
-    const response = await fetch(HF_API_URL, {
+    const response = await fetch(hfApiUrl(), {
         method: 'POST',
         headers,
         body: JSON.stringify({
