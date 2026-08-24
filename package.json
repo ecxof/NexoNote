@@ -61,6 +61,7 @@
   "build": {
     "appId": "com.ecxof.nexonote",
     "productName": "NexoNote",
+    "npmRebuild": false,
     "directories": {
       "output": "release"
     },
