@@ -4,7 +4,7 @@
  * Provides streaming chat completions grounded in the current note context.
  */
 
-import { getSettings } from './settingsService';
+import { getHfToken } from './secretService';
 
 /**
  * Where to send the chat request.
@@ -28,7 +28,8 @@ const MODEL = 'zai-org/GLM-5';
 /**
  * Resolve the Hugging Face token.
  *
- * Settings take precedence, then the VITE_HF_API_TOKEN build-time variable.
+ * The encrypted secret store takes precedence, then the VITE_HF_API_TOKEN
+ * build-time variable.
  * The env var is inlined by Vite when the bundle is built, so a packaged app
  * cannot pick up a new one; the Settings field is what makes the assistant
  * configurable after install. The fallback keeps existing .env setups working.
@@ -37,11 +38,10 @@ const MODEL = 'zai-org/GLM-5';
  */
 async function resolveToken() {
   try {
-    const settings = await getSettings();
-    const fromSettings = (settings?.hfApiToken || '').trim();
-    if (fromSettings) return fromSettings;
+    const stored = (await getHfToken()).trim();
+    if (stored) return stored;
   } catch {
-    // Settings unavailable (e.g. storage error) - fall through to the env var.
+    // Secret store unavailable - fall through to the env var.
   }
   return (import.meta.env.VITE_HF_API_TOKEN || '').trim();
 }

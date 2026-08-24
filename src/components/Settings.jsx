@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { getSettings, updateSettings } from '../services/settingsService';
+import { canStoreToken, getHfToken, setHfToken, tokenStorageStatus } from '../services/secretService';
 
 export default function Settings() {
   const [autoSave, setAutoSave] = useState(true);
@@ -12,14 +13,18 @@ export default function Settings() {
   const [hfApiToken, setHfApiToken] = useState('');
   const [tokenVisible, setTokenVisible] = useState(false);
   const [tokenStatus, setTokenStatus] = useState('');
+  const [tokenEncrypted, setTokenEncrypted] = useState(true);
+  const tokenSupported = canStoreToken();
 
   useEffect(() => {
     getSettings().then((s) => {
       setAutoSave(s.autoSave ?? true);
       setFontSize(s.fontSize ?? 'medium');
       setTheme(s.theme ?? 'dark');
-      setHfApiToken(s.hfApiToken ?? '');
     });
+    if (!canStoreToken()) return;
+    getHfToken().then((t) => setHfApiToken(t ?? ''));
+    tokenStorageStatus().then(({ encrypted }) => setTokenEncrypted(encrypted));
   }, []);
 
   const handleAutoSaveChange = (e) => {
@@ -46,7 +51,7 @@ export default function Settings() {
   const handleTokenBlur = async () => {
     const trimmed = hfApiToken.trim();
     if (trimmed !== hfApiToken) setHfApiToken(trimmed);
-    await updateSettings({ hfApiToken: trimmed });
+    await setHfToken(trimmed);
     setTokenStatus(trimmed ? 'Saved' : 'Cleared');
     setTimeout(() => setTokenStatus(''), 2000);
   };
@@ -99,43 +104,57 @@ export default function Settings() {
       </div>
       <div className="settings-section">
         <h3>AI Assistant</h3>
-        <div className="settings-row">
-          <span className="settings-label">Hugging Face API token</span>
-          <div className="settings-token-field">
-            <input
-              className="settings-input"
-              type={tokenVisible ? 'text' : 'password'}
-              value={hfApiToken}
-              onChange={(e) => setHfApiToken(e.target.value)}
-              onBlur={handleTokenBlur}
-              placeholder="hf_..."
-              autoComplete="off"
-              spellCheck="false"
-              aria-label="Hugging Face API token"
-            />
-            <button
-              type="button"
-              className="settings-token-toggle"
-              onClick={() => setTokenVisible((v) => !v)}
-              aria-label={tokenVisible ? 'Hide token' : 'Show token'}
-            >
-              {tokenVisible ? 'Hide' : 'Show'}
-            </button>
-          </div>
-        </div>
-        <p className="settings-hint">
-          Needed for Explain This, Summarize, and Quiz Me. Create one at{' '}
-          <a
-            href="https://huggingface.co/settings/tokens"
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            huggingface.co/settings/tokens
-          </a>
-          . Stored in plain text in your local app data, and sent only to Hugging Face.
-          If left empty, the <code>VITE_HF_API_TOKEN</code> build-time variable is used.
-          {tokenStatus ? <strong> {tokenStatus}</strong> : null}
-        </p>
+        {tokenSupported ? (
+          <>
+            <div className="settings-row">
+              <span className="settings-label">Hugging Face API token</span>
+              <div className="settings-token-field">
+                <input
+                  className="settings-input"
+                  type={tokenVisible ? 'text' : 'password'}
+                  value={hfApiToken}
+                  onChange={(e) => setHfApiToken(e.target.value)}
+                  onBlur={handleTokenBlur}
+                  placeholder="hf_..."
+                  autoComplete="off"
+                  spellCheck="false"
+                  aria-label="Hugging Face API token"
+                />
+                <button
+                  type="button"
+                  className="settings-token-toggle"
+                  onClick={() => setTokenVisible((v) => !v)}
+                  aria-label={tokenVisible ? 'Hide token' : 'Show token'}
+                >
+                  {tokenVisible ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+            <p className="settings-hint">
+              Needed for Explain This, Summarize, and Quiz Me. Create one at{' '}
+              <a
+                href="https://huggingface.co/settings/tokens"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                huggingface.co/settings/tokens
+              </a>
+              .{' '}
+              {tokenEncrypted
+                ? 'Encrypted with your operating system keystore and sent only to Hugging Face.'
+                : 'Your system has no keystore available, so this is stored in plain text in your local app data.'}
+              {' '}If left empty, the <code>VITE_HF_API_TOKEN</code> build-time variable is used.
+              {tokenStatus ? <strong> {tokenStatus}</strong> : null}
+            </p>
+          </>
+        ) : (
+          <p className="settings-hint">
+            The API token can only be set in the desktop app, where it is encrypted
+            with your operating system keystore. A browser has no equivalent - anything
+            kept here would be readable by any script on the page. In the browser the
+            assistant uses the <code>VITE_HF_API_TOKEN</code> build-time variable.
+          </p>
+        )}
       </div>
     </div>
   );

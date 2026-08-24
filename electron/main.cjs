@@ -5,7 +5,7 @@
  * Storage: SQLite database in userData/nexonote/nexonote.db
  * When USE_PYTHON_BACKEND=1, spawns a Python HTTP backend and uses it; otherwise uses Node + better-sqlite3.
  */
-const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -46,6 +46,70 @@ protocol.registerSchemesAsPrivileged([
   // a packaged page is a different origin from the scheme.
   { scheme: 'nexohf', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true, bypassCSP: true } },
 ]);
+
+// ─── Secret storage ─────────────────────────────────────────────────────────
+// The Hugging Face token is kept out of the settings table on purpose. Settings
+// have three writers - Electron IPC, the FastAPI backend and localStorage - and
+// only the first can reach safeStorage, so a token routed through the generic
+// settings API would land unencrypted whenever the Python backend was in use.
+// A dedicated channel backed by its own file keeps one path for the secret
+// regardless of which data backend is active.
+//
+// safeStorage encrypts against the OS keystore: DPAPI on Windows, Keychain on
+// macOS, libsecret on Linux. Where no keystore exists (a headless Linux box,
+// typically) isEncryptionAvailable() is false; the token is then stored in the
+// clear and the renderer is told, so the UI can say so rather than imply a
+// protection that is not there.
+const SECRETS_FILE = path.join(DATA_DIR, 'secrets.json');
+const ENC_PREFIX = 'safeStorage:v1:';
+
+function readSecretsFile() {
+  try {
+    return JSON.parse(fs.readFileSync(SECRETS_FILE, 'utf8')) || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeSecretsFile(data) {
+  fs.mkdirSync(path.dirname(SECRETS_FILE), { recursive: true });
+  fs.writeFileSync(SECRETS_FILE, JSON.stringify(data, null, 2), { mode: 0o600 });
+}
+
+function encryptSecret(value) {
+  if (!value) return '';
+  if (!safeStorage.isEncryptionAvailable()) return value;
+  return ENC_PREFIX + safeStorage.encryptString(value).toString('base64');
+}
+
+function decryptSecret(stored) {
+  if (!stored) return '';
+  if (!stored.startsWith(ENC_PREFIX)) return stored; // written before encryption was available
+  try {
+    return safeStorage.decryptString(Buffer.from(stored.slice(ENC_PREFIX.length), 'base64'));
+  } catch {
+    // Wrong OS user or a reset keystore: the ciphertext is unrecoverable.
+    return '';
+  }
+}
+
+function registerSecretHandlers() {
+  ipcMain.handle('secrets:status', () => ({
+    available: true,
+    encrypted: safeStorage.isEncryptionAvailable(),
+  }));
+
+  ipcMain.handle('secrets:getHfToken', () => decryptSecret(readSecretsFile().hfApiToken));
+
+  ipcMain.handle('secrets:setHfToken', (_, value) => {
+    const token = typeof value === 'string' ? value.trim() : '';
+    const data = readSecretsFile();
+    if (token) data.hfApiToken = encryptSecret(token);
+    else delete data.hfApiToken;
+    writeSecretsFile(data);
+    return { ok: true, encrypted: safeStorage.isEncryptionAvailable() };
+  });
+}
 
 // Custom protocol for the AI assistant's Hugging Face calls.
 //
@@ -298,6 +362,7 @@ app.whenReady().then(async () => {
 
   registerPdfProtocol();
   registerHuggingFaceProtocol();
+  registerSecretHandlers();
 
   // Semantic linking: Python CLI (independent of data backend)
   ipcMain.handle('semantic-links:find', async (_, payload) => {

@@ -52,4 +52,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   semanticLinks: {
     find: (payload) => ipcRenderer.invoke('semantic-links:find', payload),
   },
+  // Kept separate from settings so the token never travels the generic
+  // settings path, which the FastAPI backend also writes.
+  secrets: {
+    status: () => ipcRenderer.invoke('secrets:status'),
+    getHfToken: () => ipcRenderer.invoke('secrets:getHfToken'),
+    setHfToken: (value) => ipcRenderer.invoke('secrets:setHfToken', value),
+  },
 });
