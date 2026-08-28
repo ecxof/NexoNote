@@ -14,11 +14,11 @@ left sidebar, **keyword highlights** inside the editor body, and the force-direc
 
 | Piece | Location |
 | --- | --- |
-| Pipeline | `semantic_linking/pipeline.py` |
-| CLI transport (Electron) | `semantic_linking/cli.py` |
-| HTTP server (browser dev) | `semantic_linking/server.py` |
+| Pipeline | `server/semantic/pipeline.py` |
+| CLI transport (Electron) | `server/semantic/cli.py` |
+| HTTP server (browser dev) | `server/semantic/server.py` |
 | Renderer client | `src/features/semantic/semanticLinkingService.js` |
-| Tests | `tests/test_semantic_linking.py` |
+| Tests | `server/tests/test_semantic_linking.py` |
 
 Built on **scikit-learn** (`TfidfVectorizer`, `cosine_similarity`) and **NLTK**
 (tokenization, stop words, WordNet lemmatization).
@@ -41,21 +41,21 @@ Built on **scikit-learn** (`TfidfVectorizer`, `cosine_similarity`) and **NLTK**
 npm run setup:python
 ```
 
-From the project root. This creates a `.venv`, installs `requirements.txt` into it, downloads the NLTK corpora (`punkt`, `punkt_tab`, `stopwords`, `wordnet`), and smoke-tests the pipeline. Rerunning is safe; `-- --force` rebuilds the virtualenv.
+From the project root. This creates a `.venv`, installs the Python dependencies into it, downloads the NLTK corpora (`punkt`, `punkt_tab`, `stopwords`, `wordnet`), and smoke-tests the pipeline. Rerunning is safe; `-- --force` rebuilds the virtualenv.
 
 `punkt_tab` matters: `word_tokenize` requires it on NLTK 3.9+, where `punkt` alone is no longer enough.
 
 To install by hand instead, use any Python and point the app at it with `NEXONOTE_SEMANTIC_PYTHON`:
 
 ```bash
-pip install -r semantic_linking/requirements.txt
+pip install -r server/semantic/requirements.txt
 python -m nltk.downloader punkt punkt_tab stopwords wordnet
 ```
 
 ## Usage
 
 ```python
-from semantic_linking import find_semantic_links
+from server.semantic import find_semantic_links
 
 # target_note_text: HTML or plain text of the note you're viewing
 # existing_notes_dict: { note_id: content } for all other notes (e.g. from DB)
@@ -86,12 +86,12 @@ If Python is not set up, the server is skipped with a note explaining why and Vi
 To run the server by itself:
 
 ```bash
-python -m semantic_linking.server
+python -m server.semantic.server
 ```
 
 ### Electron
 
-No server needed. The main process spawns the Python CLI (`semantic_linking/cli.py`) when the sidebar requests related notes.
+No server needed. The main process spawns the Python CLI (`server/semantic/cli.py`) when the sidebar requests related notes.
 
 Electron picks the interpreter by probing candidates in order and keeping the first one that can `import sklearn, nltk`:
 
@@ -108,7 +108,7 @@ If no candidate has the dependencies, the sidebar shows which interpreters were 
 npm run test:python
 ```
 
-Runs `tests/test_semantic_linking.py` with the same interpreter the app uses. The suite covers the contract the callers depend on plus three properties worth keeping:
+Runs `server/tests/test_semantic_linking.py` with the same interpreter the app uses. The suite covers the contract the callers depend on plus three properties worth keeping:
 
 - **The two-note limitation stays pinned** — `SmallCorpusLimitation` asserts that a single candidate note yields no link, so the behaviour below is a known property rather than a regression someone rediscovers.
 - **Boilerplate is rejected** — unrelated notes sharing a header block produce no links, and template words never appear in `matched_keywords`. These are what `max_df` buys; they fail if it is relaxed.

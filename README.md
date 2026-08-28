@@ -166,16 +166,20 @@ NexoNote/
 │   │   ├── ci.yml               # CI: lint + build on push/PR
 │   │   └── codeql.yml           # CodeQL security analysis
 │   └── dependabot.yml           # Dependency update config
-├── backend/                     # Optional FastAPI backend (Python)
-│   ├── main.py                  # App, CORS, router registration
-│   ├── db.py                    # SQLite schema + row mapping
-│   ├── flashcard_logic.py       # SM-2 scheduling
-│   └── routers/                 # notes, folders, pdfs, settings, flashcards
-├── semantic_linking/            # TF-IDF related-notes engine (Python)
-│   ├── pipeline.py              # HTML strip, tokenize, TF-IDF, cosine similarity
-│   ├── cli.py                   # stdin/stdout JSON transport (Electron)
-│   └── server.py                # Flask server on :5000 (browser dev)
-├── tests/                       # Python test suite
+├── server/                      # All Python: one tree, one venv
+│   ├── api/                     # Optional FastAPI backend
+│   │   ├── main.py              # App, CORS, router registration
+│   │   ├── db.py                # SQLite schema + row mapping
+│   │   ├── flashcard_logic.py   # SM-2 scheduling
+│   │   ├── routers/             # notes, folders, pdfs, settings, flashcards
+│   │   └── requirements.txt
+│   ├── semantic/                # TF-IDF related-notes engine
+│   │   ├── pipeline.py          # HTML strip, tokenize, TF-IDF, cosine similarity
+│   │   ├── cli.py               # stdin/stdout JSON transport (Electron)
+│   │   ├── server.py            # Flask server on :5000 (browser dev)
+│   │   └── requirements.txt
+│   ├── tests/                   # Python test suite
+│   └── requirements.txt         # Pulls in both of the above
 ├── scripts/                     # Python setup + server launchers (Node)
 ├── electron/
 │   ├── main.cjs                 # Main process, IPC handlers, nexopdf:// protocol

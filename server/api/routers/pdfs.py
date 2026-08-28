@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from db import get_conn, pdf_to_obj
+from ..db import get_conn, pdf_to_obj
 
 router = APIRouter(prefix="/api/pdfs", tags=["pdfs"])
 

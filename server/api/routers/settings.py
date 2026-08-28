@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Body
-from db import get_conn, settings_get, settings_set
+from ..db import get_conn, settings_get, settings_set
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 

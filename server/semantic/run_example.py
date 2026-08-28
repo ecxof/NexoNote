@@ -3,20 +3,20 @@
 Example: run semantic linking from the project root.
 
   cd nexonote
-  pip install -r semantic_linking/requirements.txt
+  pip install -r server/semantic/requirements.txt
   python -m nltk.downloader punkt stopwords wordnet
-  python semantic_linking/run_example.py
+  python server/semantic/run_example.py
 """
 
 import sys
 from pathlib import Path
 
-# Allow importing semantic_linking when run as script from project root
-root = Path(__file__).resolve().parent.parent
+# Allow importing the package when run as a script from the project root
+root = Path(__file__).resolve().parents[2]
 if str(root) not in sys.path:
     sys.path.insert(0, str(root))
 
-from semantic_linking import find_semantic_links
+from server.semantic import find_semantic_links
 
 def main():
     target = """

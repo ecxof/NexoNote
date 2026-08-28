@@ -2,6 +2,7 @@
 """
 CLI for semantic linking: read JSON from stdin, write JSON to stdout.
 Used by Electron main process to spawn Python and get related notes without a server.
+Run: python -m server.semantic.cli
 """
 import json
 import sys
@@ -26,7 +27,7 @@ def main():
         return
 
     try:
-        from semantic_linking import find_semantic_links
+        from server.semantic import find_semantic_links
         links = find_semantic_links(
             target_content,
             existing,

@@ -38,10 +38,10 @@ async function main() {
     return;
   }
 
-  console.log(dim(`Semantic linking server: ${describeInterpreter(interpreter)} -m semantic_linking.server`));
+  console.log(dim(`Semantic linking server: ${describeInterpreter(interpreter)} -m server.semantic.server`));
   const proc = spawn(
     interpreter.cmd,
-    [...interpreter.args, '-m', 'semantic_linking.server'],
+    [...interpreter.args, '-m', 'server.semantic.server'],
     { cwd: PROJECT_ROOT, stdio: 'inherit' }
   );
 

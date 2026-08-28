@@ -51,7 +51,23 @@ One command sets up both the semantic linking engine and the FastAPI backend:
 npm run setup:python
 ```
 
-It creates a project-local `.venv`, installs both requirement files into it, downloads the NLTK corpora, and runs the semantic linking pipeline once to prove it works. Rerunning is safe.
+It creates a project-local `.venv`, installs the Python dependencies into it, downloads
+the NLTK corpora, and runs the semantic linking pipeline once to prove it works.
+Rerunning is safe.
+
+All Python lives under `server/`, as one importable package:
+
+```
+server/
+├── api/               FastAPI backend  ->  python -m uvicorn server.api.main:app
+├── semantic/          Linking engine   ->  python -m server.semantic.server
+│                                          or  python -m server.semantic.cli
+├── tests/             python -m unittest discover -s server/tests -t .
+└── requirements.txt   pulls in api/ and semantic/ requirements
+```
+
+Every entry point is a module path resolved from the project root, so run the commands
+from there (the npm scripts already do).
 
 | Flag | Effect |
 | --- | --- |
@@ -126,8 +142,8 @@ both server tiers must implement.
 
 **FastAPI tier**
 
-5. Mirror the schema in `backend/db.py`
-6. Add `backend/routers/entity.py` and register it in `backend/main.py`
+5. Mirror the schema in `server/api/db.py`
+6. Add `server/api/routers/entity.py` and register it in `server/api/main.py`
 7. Add the matching methods to `createBackendClient` in `src/shared/api/apiClient.js`
 
 **Renderer**

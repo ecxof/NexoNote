@@ -10,15 +10,15 @@ import sys
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from semantic_linking import find_semantic_links
-from semantic_linking.pipeline import MAX_DF_RATIO, _analyzer
+from server.semantic import find_semantic_links
+from server.semantic.pipeline import MAX_DF_RATIO, _analyzer
 
 # Fewest candidate notes that can produce a non-zero score. Below this the
 # max_df proportion prunes the entire shared vocabulary; see pipeline.py.

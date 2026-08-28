@@ -1,7 +1,7 @@
 /**
  * Semantic linking service: find conceptually related notes with matched keywords.
  * In Electron: IPC to main process (spawns Python CLI).
- * In browser (localhost): POST to local Python server (run semantic_linking/server.py).
+ * In browser (localhost): POST to local Python server (run server/semantic/server.py).
  *
  * Response shape per link:
  *   { linked_note_id: string, similarity_score: number, matched_keywords: string[] }
@@ -73,7 +73,7 @@ export async function findSemanticLinks(targetContent, existingNotes, options = 
     return {
       links: [],
       error: e?.message?.includes('fetch')
-        ? 'Semantic linking server not running. Start it with: python -m semantic_linking.server'
+        ? 'Semantic linking server not running. Start it with: python -m server.semantic.server'
         : (e?.message || 'Request failed'),
     };
   }

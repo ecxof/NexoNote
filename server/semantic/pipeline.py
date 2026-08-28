@@ -114,7 +114,7 @@ DOMAIN_STOP_WORDS = frozenset({
 # terms common to the entire corpus, and at that size boilerplate and topic are
 # indistinguishable — both appear in 100% of the documents — so the rescued
 # score would be confidently wrong rather than merely absent. Cold-start
-# emptiness is the more honest failure. See tests/test_semantic_linking.py,
+# emptiness is the more honest failure. See server/tests/test_semantic_linking.py,
 # which pins this behaviour, and docs/semantic-linking.md.
 MAX_DF_RATIO = 0.85
 

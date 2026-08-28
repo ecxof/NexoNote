@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from db import get_conn, note_to_obj, sync_note_tags
+from ..db import get_conn, note_to_obj, sync_note_tags
 
 router = APIRouter(prefix="/api/notes", tags=["notes"])
 

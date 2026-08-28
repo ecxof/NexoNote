@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional, Any
-from db import (
+from ..db import (
     get_conn,
     get_tags_for_note,
     flashcard_to_obj,
@@ -11,7 +11,7 @@ from db import (
     ensure_deck_for_note,
     write_flashcard_options,
 )
-from flashcard_logic import compute_sm2_state, apply_difficulty_override
+from ..flashcard_logic import compute_sm2_state, apply_difficulty_override
 
 router = APIRouter(prefix="/api/flashcards", tags=["flashcards"])
 

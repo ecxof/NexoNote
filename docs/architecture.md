@@ -23,10 +23,10 @@ Renderer (React + Vite)                Main process (Electron + Node)
 └────────────────────────────┘                       │ spawn
              │                                       ▼
              │ HTTP                       ┌────────────────────────┐
-             └──────────────────────────► │  backend/  (FastAPI)   │
+             └──────────────────────────► │  server/api (FastAPI)  │
                                           │  :8765                 │
                                           ├────────────────────────┤
-                                          │  semantic_linking/     │
+                                          │  server/semantic       │
                                           │  CLI, or Flask :5000   │
                                           └────────────────────────┘
                                                      │
@@ -146,7 +146,7 @@ Import rule: crossing a directory uses the `@/` alias, staying inside one keeps
 
 Flashcards carry `easiness_factor` (default 2.5), `interval_days`, and
 `repetition_count`. Scheduling lives in two places that must agree —
-`electron/database.cjs` for the IPC tier and `backend/flashcard_logic.py` for the
+`electron/database.cjs` for the IPC tier and `server/api/flashcard_logic.py` for the
 FastAPI tier.
 
 ## State management
@@ -175,7 +175,7 @@ order and keeps the first that can import the required packages: an explicit
 then `python`. If none qualify, the error names every candidate and why each failed.
 
 Semantic linking reaches Python two different ways depending on run mode: Electron
-spawns `semantic_linking/cli.py` per request over stdin/stdout JSON, while browser dev
+spawns `server/semantic/cli.py` per request over stdin/stdout JSON, while browser dev
 posts to the Flask server on `:5000`. See [semantic-linking.md](./semantic-linking.md).
 
 ## Performance notes
@@ -194,7 +194,7 @@ posts to the Flask server on `:5000`. See [semantic-linking.md](./semantic-linki
 ## Known structural debt
 
 - **Duplicated data layer** — `electron/database.cjs` (~1,300 lines) and
-  `backend/db.py` plus its routers (~1,000 lines) implement the same contract twice,
+  `server/api/db.py` plus its routers (~1,000 lines) implement the same contract twice,
   with `apiClient.js` mirroring the surface a third time
 - **Unused legacy components** — `FolderList.jsx` and `NoteList.jsx` are superseded by
   `SidebarTree.jsx`

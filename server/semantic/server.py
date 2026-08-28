@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Minimal HTTP server for semantic linking (browser / localhost dev).
-Run: python -m semantic_linking.server  (or python semantic_linking/server.py)
+Run: python -m server.semantic.server  (or python server/semantic/server.py)
 Then the React app at http://localhost:5173 can POST to http://localhost:5000/find-links.
 """
 import json
@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 # Ensure package is importable when run as script
-root = Path(__file__).resolve().parent.parent
+root = Path(__file__).resolve().parents[2]
 if str(root) not in sys.path:
     sys.path.insert(0, str(root))
 
@@ -59,7 +59,7 @@ def find_links():
         return jsonify({"links": []})
 
     try:
-        from semantic_linking import find_semantic_links
+        from server.semantic import find_semantic_links
         links = find_semantic_links(
             target_content,
             existing,
