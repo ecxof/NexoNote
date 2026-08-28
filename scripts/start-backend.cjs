@@ -38,12 +38,12 @@ async function main() {
 
   const args = [
     ...interpreter.args,
-    '-m', 'uvicorn', 'backend.main:app',
+    '-m', 'uvicorn', 'server.api.main:app',
     '--host', '127.0.0.1',
     '--port', port,
     '--reload',
   ];
-  console.log(dim(`FastAPI backend: ${describeInterpreter(interpreter)} -m uvicorn backend.main:app --port ${port}`));
+  console.log(dim(`FastAPI backend: ${describeInterpreter(interpreter)} -m uvicorn server.api.main:app --port ${port}`));
 
   const proc = spawn(interpreter.cmd, args, {
     cwd: PROJECT_ROOT,

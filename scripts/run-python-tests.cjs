@@ -28,7 +28,7 @@ async function main() {
 
   const extra = process.argv.slice(2);
   const args = [...interpreter.args, '-m', 'unittest'];
-  args.push(...(extra.length ? extra : ['discover', '-s', 'tests', '-t', '.', '-v']));
+  args.push(...(extra.length ? extra : ['discover', '-s', 'server/tests', '-t', '.', '-v']));
 
   console.log(`${describeInterpreter(interpreter)} -m unittest ${args.slice(interpreter.args.length + 2).join(' ')}`);
   const proc = spawn(interpreter.cmd, args, { cwd: PROJECT_ROOT, stdio: 'inherit' });

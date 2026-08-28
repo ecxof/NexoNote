@@ -278,7 +278,7 @@ async function startPythonBackend() {
     };
     const child = spawn(
       interpreter.cmd,
-      [...interpreter.args, '-m', 'uvicorn', 'backend.main:app', '--host', '127.0.0.1', '--port', port],
+      [...interpreter.args, '-m', 'uvicorn', 'server.api.main:app', '--host', '127.0.0.1', '--port', port],
       { cwd: PROJECT_ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] }
     );
     pythonProcess = child;
@@ -388,7 +388,7 @@ app.whenReady().then(async () => {
     return new Promise((resolve) => {
       const proc = spawn(
         interpreter.cmd,
-        [...interpreter.args, '-m', 'semantic_linking.cli'],
+        [...interpreter.args, '-m', 'server.semantic.cli'],
         { cwd: PROJECT_ROOT, stdio: ['pipe', 'pipe', 'pipe'] }
       );
       let stdout = '';

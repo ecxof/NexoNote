@@ -105,8 +105,8 @@ async function main() {
   const upgraded = await run(venv, ['-m', 'pip', 'install', '--upgrade', 'pip', '--quiet']);
   if (upgraded.code !== 0) console.log(dim('    pip self-upgrade skipped'));
 
-  const requirements = ['semantic_linking/requirements.txt'];
-  if (withBackend) requirements.push('backend/requirements.txt');
+  const requirements = ['server/semantic/requirements.txt'];
+  if (withBackend) requirements.push('server/api/requirements.txt');
   for (const req of requirements) {
     const installed = await run(venv, ['-m', 'pip', 'install', '-r', req]);
     if (installed.code !== 0) fail(`pip could not install ${req}.`);
@@ -131,7 +131,7 @@ async function main() {
   // import check would not. Needs three documents: with only two, max_df=0.85
   // drops every term they share and nothing can score above zero.
   const smoke = await run(venv, ['-c', [
-    'from semantic_linking import find_semantic_links',
+    'from server.semantic import find_semantic_links',
     'links = find_semantic_links("<p>Gradient descent trains neural networks.</p>", {',
     '  "a": "<p>Backpropagation computes gradients for neural networks.</p>",',
     '  "b": "<p>Deadlock occurs when two processes wait on each other.</p>",',
