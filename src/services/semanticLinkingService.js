@@ -18,7 +18,7 @@ const SEMANTIC_SERVER_URL = 'http://127.0.0.1:5000';
  * alike the notes are — identical notes included. Below this count the request
  * is skipped rather than sent, because the answer is already known.
  *
- * See the Limitations section of semantic_linking/README.md.
+ * See the Limitations section of docs/semantic-linking.md.
  */
 export const MIN_NOTES_FOR_LINKS = 3;
 

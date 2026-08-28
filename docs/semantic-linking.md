@@ -1,6 +1,27 @@
-# Semantic Linking – Python Backend
+# Semantic Linking
 
-This package implements **semantic linking** for NexoNote: it analyzes note content (HTML from the Rich Text Editor) and finds conceptually related notes using TF-IDF and cosine similarity.
+Semantic linking suggests **conceptually related notes** based on the content of the
+note you are reading. It is implemented in Python and uses standard NLP and IR
+techniques, so links are driven by domain concepts (e.g. "backpropagation",
+"deadlock") rather than by common or structural words (e.g. "the", "study", "page",
+"conclusion").
+
+It surfaces in the app in three places: the **Related notes** panel in the note view's
+left sidebar, **keyword highlights** inside the editor body, and the force-directed
+**semantic graph** view.
+
+## Where it lives
+
+| Piece | Location |
+| --- | --- |
+| Pipeline | `semantic_linking/pipeline.py` |
+| CLI transport (Electron) | `semantic_linking/cli.py` |
+| HTTP server (browser dev) | `semantic_linking/server.py` |
+| Renderer client | `src/services/semanticLinkingService.js` |
+| Tests | `tests/test_semantic_linking.py` |
+
+Built on **scikit-learn** (`TfidfVectorizer`, `cosine_similarity`) and **NLTK**
+(tokenization, stop words, WordNet lemmatization).
 
 ## Data source
 
@@ -117,9 +138,6 @@ Related: NexoNote has no note templates, and the title and tags are stored in se
 
 Visible in the table above: the related pair moves from 0.333 to 0.367 as unrelated notes are added. IDF is computed over the whole corpus, so a term's weight depends on how many notes exist. The percentage shown in the sidebar drifts upward over time for an unchanged pair of notes. The drift is bounded and monotonic — `ScoreConsistencyAsCorpusGrows` pins both — but it is not a bug report.
 
-## Dependencies
+## Alternative implementations
 
-- **scikit-learn** – TF-IDF and cosine similarity
-- **nltk** – Tokenization, stop words, lemmatization (WordNet)
-
-Alternative: the same pipeline can be implemented with **spaCy** (e.g. `en_core_web_sm`) for lemmatization and stop words; the current implementation uses NLTK to avoid a separate model download step.
+The same pipeline can be implemented with **spaCy** (e.g. `en_core_web_sm`) for lemmatization and stop words; the current implementation uses NLTK to avoid a separate model download step.

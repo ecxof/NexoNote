@@ -18,7 +18,7 @@ NexoNote is a desktop note-taking and study companion built with Electron and Re
 - **Tags** - Tag notes with autocomplete suggestions and inline editing
 - **Tab Bar** - Open multiple notes and PDFs in browser-style tabs
 - **Flashcards** - Flip, multiple-choice, and true/false cards scheduled with the SM-2 spaced-repetition algorithm, plus review sessions and performance analytics
-- **Semantic Linking** - Related notes (TF-IDF), in-editor keyword highlights, and a force-directed semantic graph. See [semantic_linking/README.md](semantic_linking/README.md) for setup
+- **Semantic Linking** - Related notes (TF-IDF), in-editor keyword highlights, and a force-directed semantic graph. See [docs/semantic-linking.md](./docs/semantic-linking.md) for setup
 - **AI Assistant** - In-note chat with Explain This, Summarize, and Quiz Me, backed by Hugging Face. The API token is entered in Settings, so no rebuild is needed
 - **Local Storage** - SQLite in Electron, `localStorage` in the browser. See [Storage](#storage) below
 - **Dark & Light Themes** - Configurable via Settings, applies instantly
@@ -100,8 +100,8 @@ If none qualify, the error names every interpreter tried and why each was reject
 ### AI assistant setup
 
 Open **Settings > AI Assistant** and paste your
-[Hugging Face token](https://huggingface.co/settings/tokens). It is saved with the rest
-of your settings and takes effect immediately, with no rebuild.
+[Hugging Face token](https://huggingface.co/settings/tokens). It takes effect
+immediately, with no rebuild.
 
 Alternatively, for development, set it at build time:
 
@@ -118,8 +118,11 @@ Requests are proxied through Vite to `https://router.huggingface.co`. Without a 
 the rest of the app works normally and only the AI assistant is unavailable.
 
 > [!NOTE]
-> The token is stored in plain text alongside your other settings (SQLite in Electron,
-> `localStorage` in the browser) and is sent only to Hugging Face.
+> In Electron the token is encrypted against the OS keystore with Electron's
+> `safeStorage` (DPAPI on Windows, Keychain on macOS) and is kept out of the settings
+> store entirely, because the settings path has writers that cannot reach the keystore.
+> A plain browser has no equivalent, so no storage is offered there and only the
+> build-time `VITE_HF_API_TOKEN` is used. The token is sent only to Hugging Face.
 
 ---
 
@@ -143,7 +146,7 @@ Tiers 1 and 2 are two implementations of the same contract and share the same SQ
 | Build Tool | Vite 7.x | Fast HMR dev server |
 | Desktop Shell | Electron 42.x | Native window, file system, IPC |
 | Rich Text Editor | TipTap 3.x (ProseMirror) | Note content editing |
-| Database | better-sqlite3 12.x | Local storage (Electron mode) |
+| Database | better-sqlite3 13.x | Local storage (Electron mode) |
 | Backend (optional) | FastAPI + Uvicorn | HTTP implementation of the same data API |
 | Semantic Linking | scikit-learn + NLTK | TF-IDF and cosine similarity |
 | Graph Rendering | react-force-graph-2d | Force-directed semantic graph |
@@ -159,10 +162,10 @@ Tiers 1 and 2 are two implementations of the same contract and share the same SQ
 ```
 NexoNote/
 ├── .github/
-│   └── workflows/
-│       ├── ci.yml               # CI: lint + build on push/PR
-│       ├── codeql.yml           # CodeQL security analysis
-│       └── npm-audit.yml        # Dependency vulnerability scan
+│   ├── workflows/
+│   │   ├── ci.yml               # CI: lint + build on push/PR
+│   │   └── codeql.yml           # CodeQL security analysis
+│   └── dependabot.yml           # Dependency update config
 ├── backend/                     # Optional FastAPI backend (Python)
 │   ├── main.py                  # App, CORS, router registration
 │   ├── db.py                    # SQLite schema + row mapping
@@ -172,6 +175,8 @@ NexoNote/
 │   ├── pipeline.py              # HTML strip, tokenize, TF-IDF, cosine similarity
 │   ├── cli.py                   # stdin/stdout JSON transport (Electron)
 │   └── server.py                # Flask server on :5000 (browser dev)
+├── tests/                       # Python test suite
+├── scripts/                     # Python setup + server launchers (Node)
 ├── electron/
 │   ├── main.cjs                 # Main process, IPC handlers, nexopdf:// protocol
 │   ├── preload.cjs              # contextBridge API
@@ -190,15 +195,16 @@ NexoNote/
 │   │   ├── FlashcardsView.jsx   # Flashcard library
 │   │   ├── SemanticGraphView.jsx # Force-directed note graph
 │   │   ├── Settings.jsx         # App settings
-│   │   └── ...                  # (see COMPLETE_FILE_LISTING.md)
-│   ├── services/                # Data access layer (7 files)
+│   │   └── ...
+│   ├── services/                # Data access layer (8 files)
 │   │   ├── noteService.js       # Note CRUD
 │   │   ├── folderService.js     # Folder CRUD
 │   │   ├── pdfService.js        # PDF CRUD
 │   │   ├── settingsService.js   # Settings read/write
 │   │   ├── flashcardService.js  # Flashcard CRUD + review
 │   │   ├── semanticLinkingService.js # Related-notes requests
-│   │   └── chatService.js       # Hugging Face streaming chat
+│   │   ├── chatService.js       # Hugging Face streaming chat
+│   │   └── secretService.js     # Encrypted Hugging Face token access
 │   ├── context/
 │   │   ├── ItemMenuContext.jsx  # Single-open menu context
 │   │   └── ItemMenuProvider.jsx # Provider (split out for Fast Refresh)
@@ -209,8 +215,12 @@ NexoNote/
 │   ├── App.css                  # Component styles
 │   ├── index.css                # CSS variables + themes
 │   └── main.jsx                 # Entry point
-├── docs/
-│   └── backend-api-contract.md  # Shared API contract (IPC and HTTP)
+├── docs/                        # All project documentation
+│   ├── architecture.md
+│   ├── development.md
+│   ├── styling.md
+│   ├── semantic-linking.md
+│   └── backend-api-contract.md
 ├── public/                      # Static assets + logo
 └── package.json
 ```
@@ -270,16 +280,15 @@ npm run lint
 
 ## Documentation
 
-- **[QUICK_START.md](./QUICK_START.md)** - Get started in 5 minutes
-- **[PROJECT_SETUP.md](./PROJECT_SETUP.md)** - Complete setup guide
-- **[SETUP_CHECKLIST.md](./SETUP_CHECKLIST.md)** - Step-by-step setup verification
-- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture and design
-- **[SEMANTIC_LINKING.md](./SEMANTIC_LINKING.md)** - Semantic linking design and setup
-- **[docs/backend-api-contract.md](./docs/backend-api-contract.md)** - Shared data API contract
-- **[STYLING_GUIDELINES.md](./STYLING_GUIDELINES.md)** - CSS best practices
-- **[COLOR_AND_STYLE_REFERENCE.md](./COLOR_AND_STYLE_REFERENCE.md)** - Full color and style reference
-- **[DEVELOPER_CHECKLIST.md](./DEVELOPER_CHECKLIST.md)** - Pre-commit developer checklist
-- **[COMPLETE_FILE_LISTING.md](./COMPLETE_FILE_LISTING.md)** - Full file inventory
+Everything lives in [`docs/`](./docs).
+
+| Document | Covers |
+| --- | --- |
+| [development.md](./docs/development.md) | Prerequisites, setup, every script, extension recipes, troubleshooting |
+| [architecture.md](./docs/architecture.md) | Processes, storage tiers, data model, state, known structural debt |
+| [styling.md](./docs/styling.md) | Design tokens, both themes, spacing, interaction conventions |
+| [semantic-linking.md](./docs/semantic-linking.md) | TF-IDF pipeline, setup, tests, limitations |
+| [backend-api-contract.md](./docs/backend-api-contract.md) | The API contract shared by the IPC and HTTP tiers |
 
 ---
 
@@ -354,23 +363,12 @@ npm run lint
 
 ## Development Guide
 
-### Adding a New Component
+See [docs/development.md](./docs/development.md) for prerequisites, the full script
+reference, and step-by-step recipes for adding a component or a new data entity across
+all three storage tiers.
 
-1. Create component file in `src/components/YourComponent.jsx`
-2. Add styles to `src/App.css`
-3. Import and use in parent component
-4. Use CSS variables for colors
-5. Ensure dark theme compatibility
-
-### Styling Best Practices
-
-- Always use CSS variables from `index.css`
-- Use Flexbox for layouts
-- Add hover states for interactive elements
-- Maintain dark theme consistency
-- Use semantic HTML
-
-See [STYLING_GUIDELINES.md](./STYLING_GUIDELINES.md) for detailed guidance.
+For colors, spacing, and interaction conventions, see
+[docs/styling.md](./docs/styling.md).
 
 ---
 
@@ -405,7 +403,7 @@ Packaging requires the native build toolchain listed under [Prerequisites](#prer
 
 Contributions are welcome. Please ensure:
 
-1. Code follows the style guide in STYLING_GUIDELINES.md
+1. Code follows the conventions in [docs/styling.md](./docs/styling.md)
 2. All components are dark-theme compatible
 3. Responsive design is tested
 4. Documentation is updated

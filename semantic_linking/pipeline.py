@@ -115,7 +115,7 @@ DOMAIN_STOP_WORDS = frozenset({
 # indistinguishable — both appear in 100% of the documents — so the rescued
 # score would be confidently wrong rather than merely absent. Cold-start
 # emptiness is the more honest failure. See tests/test_semantic_linking.py,
-# which pins this behaviour, and semantic_linking/README.md.
+# which pins this behaviour, and docs/semantic-linking.md.
 MAX_DF_RATIO = 0.85
 
 
