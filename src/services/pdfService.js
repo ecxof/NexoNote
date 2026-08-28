@@ -5,7 +5,7 @@
  */
 
 import { nanoid } from 'nanoid';
-import { getBackendClient } from '../apiClient';
+import { getBackendClient } from '@/apiClient';
 
 const STORAGE_KEY = 'nexonote_pdfs';
 

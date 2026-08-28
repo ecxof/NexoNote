@@ -19,8 +19,8 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import ForceGraph2D from "react-force-graph-2d";
 import { X, ExternalLink, CreditCard, Clock, Network } from "lucide-react";
-import { findSemanticLinks, MIN_NOTES_FOR_LINKS } from "../services/semanticLinkingService";
-import { getFlashcards } from "../services/flashcardService";
+import { findSemanticLinks, MIN_NOTES_FOR_LINKS } from "@/services/semanticLinkingService";
+import { getFlashcards } from "@/services/flashcardService";
 
 // ─── Canvas helpers ────────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Pencil, Plus, Search, Trash2 } from 'lucide-react';
-import { deleteFlashcard, getFlashcardLibrary, getFlashcards } from '../services/flashcardService';
+import { deleteFlashcard, getFlashcardLibrary, getFlashcards } from '@/services/flashcardService';
 import FlashcardManualModal from './FlashcardManualModal';
 
 const FILTERS = [

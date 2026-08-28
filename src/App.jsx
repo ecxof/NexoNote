@@ -3,10 +3,10 @@
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import './App.css';
-import { ItemMenuProvider } from './context/ItemMenuProvider';
-import Sidebar from './components/Sidebar';
-import MainContent from './components/MainContent';
-import { ConfirmModal, PromptModal } from './components/Modal';
+import { ItemMenuProvider } from '@/context/ItemMenuProvider';
+import Sidebar from '@/components/Sidebar';
+import MainContent from '@/components/MainContent';
+import { ConfirmModal, PromptModal } from '@/components/Modal';
 import {
   getNotes,
   createNote,
@@ -14,15 +14,15 @@ import {
   updateNote,
   deleteNote,
   duplicateNote,
-} from './services/noteService';
+} from '@/services/noteService';
 import {
   getFolders,
   createFolder,
   updateFolder,
   deleteFolder,
-} from './services/folderService';
-import { getSettings } from './services/settingsService';
-import { getPdfs, addPdf, updatePdf, removePdf, duplicatePdf } from './services/pdfService';
+} from '@/services/folderService';
+import { getSettings } from '@/services/settingsService';
+import { getPdfs, addPdf, updatePdf, removePdf, duplicatePdf } from '@/services/pdfService';
 import { nanoid } from 'nanoid';
 
 const DEFAULT_SETTINGS = { autoSave: true, fontSize: 'medium', theme: 'dark' };

@@ -3,7 +3,7 @@
  * Folder shape: { id, name, createdAt }.
  */
 
-import { getBackendClient } from '../apiClient';
+import { getBackendClient } from '@/apiClient';
 
 const STORAGE_KEY = 'nexonote_folders';
 

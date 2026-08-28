@@ -16,7 +16,7 @@ import {
   FileText,
 } from 'lucide-react';
 import SidebarTree from './SidebarTree';
-import { getSettings, updateSettings } from '../services/settingsService';
+import { getSettings, updateSettings } from '@/services/settingsService';
 
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 480;

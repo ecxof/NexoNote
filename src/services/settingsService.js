@@ -8,7 +8,7 @@
  * except to the Hugging Face router.
  */
 
-import { getBackendClient } from '../apiClient';
+import { getBackendClient } from '@/apiClient';
 
 const STORAGE_KEY = 'nexonote_settings';
 const DEFAULTS = {

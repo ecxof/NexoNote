@@ -3,7 +3,7 @@
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { ArrowLeft, Tag, GitBranch, List, Plus, Map, PanelLeftClose, Pencil, Trash2, Link2, Loader2 } from 'lucide-react';
-import { findSemanticLinks, MIN_NOTES_FOR_LINKS } from '../services/semanticLinkingService';
+import { findSemanticLinks, MIN_NOTES_FOR_LINKS } from '@/services/semanticLinkingService';
 
 /** Extract headings and their text; works even when headings contain nested tags (e.g. bold/italic). */
 function extractHeadings(html) {

@@ -4,7 +4,7 @@
  */
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import RichTextEditor from './RichTextEditor';
-import { updateNote } from '../services/noteService';
+import { updateNote } from '@/services/noteService';
 import { Save } from 'lucide-react';
 
 const DEBOUNCE_MS = 1500;

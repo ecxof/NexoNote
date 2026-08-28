@@ -90,6 +90,24 @@ npm run dist             # Package an installer into release/
 npm run dist:dir         # Package unpacked (faster, no installer)
 ```
 
+## Import conventions
+
+`@/` resolves to `src/`. The rule is one line:
+
+- **Crossing a directory boundary** uses the alias: `import { getNotes } from '@/services/noteService'`
+- **Same directory** stays relative: `import ItemMenu from './ItemMenu'`
+
+This keeps imports stable when a file moves, and avoids `../../..` chains as the tree
+gets deeper. The alias is declared in two places and both must agree:
+
+| File | Consumer |
+| --- | --- |
+| `vite.config.js` (`resolve.alias`) | Dev server and production build |
+| `jsconfig.json` (`compilerOptions.paths`) | Editor go-to-definition and autocomplete |
+
+ESLint does not resolve import paths here — there is no `eslint-plugin-import` in the
+config — so a broken path surfaces at build time, not at lint time.
+
 ## Recipes
 
 ### Add a new data entity

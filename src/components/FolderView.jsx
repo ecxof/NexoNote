@@ -5,7 +5,7 @@ import { useState, useMemo, useRef, useEffect, useLayoutEffect, useContext } fro
 import { createPortal } from 'react-dom';
 import { Plus, MoreVertical, FileText, FileType, Folder, LayoutGrid, List } from 'lucide-react';
 import { NoteItemMenu, PdfItemMenu } from './ItemMenu';
-import { ItemMenuContext } from '../context/ItemMenuContext';
+import { ItemMenuContext } from '@/context/ItemMenuContext';
 
 function formatDate(date) {
   if (!date) return '';

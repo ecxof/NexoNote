@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid';
-import { getBackendClient } from '../apiClient';
+import { getBackendClient } from '@/apiClient';
 import { getNotes } from './noteService';
 import { getFolders } from './folderService';
 

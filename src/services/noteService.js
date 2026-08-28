@@ -5,7 +5,7 @@
  */
 
 import { nanoid } from 'nanoid';
-import { getBackendClient } from '../apiClient';
+import { getBackendClient } from '@/apiClient';
 
 const STORAGE_KEY = 'nexonote_notes';
 const FLASHCARDS_KEY = 'nexonote_flashcards_v2_cards';

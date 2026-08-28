@@ -3,8 +3,8 @@
  * Persisted via settingsService; parent reads settings and passes to editor.
  */
 import { useState, useEffect } from 'react';
-import { getSettings, updateSettings } from '../services/settingsService';
-import { canStoreToken, getHfToken, setHfToken, tokenStorageStatus } from '../services/secretService';
+import { getSettings, updateSettings } from '@/services/settingsService';
+import { canStoreToken, getHfToken, setHfToken, tokenStorageStatus } from '@/services/secretService';
 
 export default function Settings() {
   const [autoSave, setAutoSave] = useState(true);

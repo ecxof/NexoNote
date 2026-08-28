@@ -1,6 +1,6 @@
 import { AlertTriangle, BarChart3, CircleDot } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getPerformanceAnalytics } from '../services/flashcardService';
+import { getPerformanceAnalytics } from '@/services/flashcardService';
 
 function toTone(category) {
   if (category === 'Mastery') return 'good';

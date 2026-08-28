@@ -5,7 +5,7 @@
 import { Plus, Upload, BookOpen, ArrowRight } from 'lucide-react';
 import { NoteItemMenu } from './ItemMenu';
 import { useEffect, useState } from 'react';
-import { getDueFlashcards } from '../services/flashcardService';
+import { getDueFlashcards } from '@/services/flashcardService';
 
 function formatDate(date) {
   if (!date) return '';

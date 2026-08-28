@@ -6,7 +6,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useId, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { MoreVertical, Pencil, Trash2, Copy, ClipboardPaste, FolderInput } from 'lucide-react';
-import { ItemMenuContext } from '../context/ItemMenuContext';
+import { ItemMenuContext } from '@/context/ItemMenuContext';
 
 const DROPDOWN_PADDING = 8;
 const SUBMENU_OFFSET = 4;

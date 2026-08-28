@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import { nanoid } from 'nanoid';
-import { createFlashcard, updateFlashcard } from '../services/flashcardService';
+import { createFlashcard, updateFlashcard } from '@/services/flashcardService';
 
 const TYPES = [
   { key: 'flip', label: 'Flip Card' },

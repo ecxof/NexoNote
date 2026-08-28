@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Circle, X } from 'lucide-react';
-import { getDueFlashcards, getFlashcards, reviewFlashcard } from '../services/flashcardService';
+import { getDueFlashcards, getFlashcards, reviewFlashcard } from '@/services/flashcardService';
 
 const DIFFICULTIES = [
   { label: 'Again', sub: '< 1 m', rating: 0, difficulty: 'again', tone: 'again' },

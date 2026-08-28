@@ -18,7 +18,7 @@ import {
   Plus,
   Search,
 } from 'lucide-react';
-import { sendChatMessage } from '../services/chatService';
+import { sendChatMessage } from '@/services/chatService';
 
 /** Simple markdown-like formatting for AI responses */
 function formatMessage(text) {

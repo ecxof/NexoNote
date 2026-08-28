@@ -16,7 +16,7 @@ import Image from '@tiptap/extension-image';
 import Highlight from '@tiptap/extension-highlight';
 import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
-import { SemanticLink } from '../extensions/SemanticLink';
+import { SemanticLink } from '@/extensions/SemanticLink';
 import { useEffect, useState, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
 import {
   Undo2,
