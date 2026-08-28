@@ -94,7 +94,7 @@ npm run dist:dir         # Package unpacked (faster, no installer)
 
 `@/` resolves to `src/`. The rule is one line:
 
-- **Crossing a directory boundary** uses the alias: `import { getNotes } from '@/services/noteService'`
+- **Crossing a directory boundary** uses the alias: `import { getNotes } from '@/features/notes/noteService'`
 - **Same directory** stays relative: `import ItemMenu from './ItemMenu'`
 
 This keeps imports stable when a file moves, and avoids `../../..` chains as the tree
@@ -128,18 +128,20 @@ both server tiers must implement.
 
 5. Mirror the schema in `backend/db.py`
 6. Add `backend/routers/entity.py` and register it in `backend/main.py`
-7. Add the matching methods to `createBackendClient` in `src/apiClient.js`
+7. Add the matching methods to `createBackendClient` in `src/shared/api/apiClient.js`
 
 **Renderer**
 
-8. Create `src/services/entityService.js`, following the existing three-branch pattern:
-   HTTP client if `getBackendClient()` resolves, else `window.electronAPI`, else `localStorage`
-9. Add state and handlers in `src/App.jsx`
+8. Create `src/features/<entity>/entityService.js`, following the existing three-branch
+   pattern: HTTP client if `getBackendClient()` resolves, else `window.electronAPI`,
+   else `localStorage`
+9. Add state and handlers in `src/app/App.jsx`
 
 ### Add a new component
 
-1. Create the file in `src/components/`
-2. Add its styles to the matching file in `src/styles/` (see [styling.md](./styling.md))
+1. Create the file in the owning feature's directory under `src/features/` — or in
+   `src/shared/components/` if more than one feature uses it
+2. Add its styles to that feature's stylesheet (see [styling.md](./styling.md))
 3. Import it where it is used
 4. Use CSS variables for every color — see [styling.md](./styling.md)
 5. Check it in both dark and light themes

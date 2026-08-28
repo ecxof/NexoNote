@@ -44,7 +44,7 @@ Every data service resolves its backend at call time, in this order:
 3. **localStorage** — in a plain browser with no Electron present
 
 Tiers 1 and 2 are two independent implementations of one contract, over the same
-SQLite file. `src/apiClient.js` deliberately mirrors the shape of `window.electronAPI`
+SQLite file. `src/shared/api/apiClient.js` deliberately mirrors the shape of `window.electronAPI`
 so a service can swap between them without branching per-method. See
 [backend-api-contract.md](./backend-api-contract.md) for the contract itself.
 
@@ -95,6 +95,27 @@ App.jsx  (global state, data handlers)
         ├── PDFViewer → PDFFloatingToolbar
         └── NoteViewRightSidebar    AI assistant chat, flashcards, export
 ```
+
+## Renderer layout
+
+`src/` is sliced by feature, not by file type. A feature directory owns its
+components, its data service, and its stylesheet together, so adding or deleting
+a feature touches one directory.
+
+```
+src/
+├── app/         Shell: App, view router, sidebar, tab bar (+ their CSS)
+├── features/    dashboard, folders, notes, assistant, semantic, pdfs,
+│                flashcards, settings - each with components + service + CSS
+├── shared/      api/ (HTTP client), components/ (ItemMenu, Modal), context/
+├── styles/      main.css barrel, tokens.css, base.css
+└── main.jsx     Entry point
+```
+
+Import rule: crossing a directory uses the `@/` alias, staying inside one keeps
+`./`. Cross-feature imports are allowed and expected — `NoteViewSidebar` in
+`notes/` calls the linking service in `semantic/`, and `RichTextEditor` uses the
+`SemanticLink` mark from the same place.
 
 ## Data model
 
@@ -162,9 +183,9 @@ posts to the Flask server on `:5000`. See [semantic-linking.md](./semantic-linki
 - `better-sqlite3` is synchronous — no async overhead, and fine for a single window
 - WAL journal mode for concurrent reads
 - The service layer caches nothing; every call reads through to storage
-- Styles are 13 files under `src/styles/`, pulled in through one barrel import in
-  `App.jsx`; Vite inlines the `@import`s at build time, so there is no runtime
-  request waterfall
+- Styles are 14 files co-located with the features they style, pulled in through one
+  barrel import (`src/styles/main.css`) in `App.jsx`; Vite inlines the `@import`s at
+  build time, so there is no runtime request waterfall
 - TipTap is the heaviest component; content is stored as HTML
 - PDFs are streamed through the custom `nexopdf://` protocol in Electron rather than
   inlined as base64 data URLs
@@ -175,8 +196,5 @@ posts to the Flask server on `:5000`. See [semantic-linking.md](./semantic-linki
 - **Duplicated data layer** — `electron/database.cjs` (~1,300 lines) and
   `backend/db.py` plus its routers (~1,000 lines) implement the same contract twice,
   with `apiClient.js` mirroring the surface a third time
-- **Flat component directory** — `src/components/` holds 23 files spanning notes,
-  folders, PDFs, flashcards, semantic linking, the AI assistant, and app shell, with
-  nothing in the layout indicating which is which
 - **Unused legacy components** — `FolderList.jsx` and `NoteList.jsx` are superseded by
   `SidebarTree.jsx`

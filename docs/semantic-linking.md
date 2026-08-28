@@ -17,7 +17,7 @@ left sidebar, **keyword highlights** inside the editor body, and the force-direc
 | Pipeline | `semantic_linking/pipeline.py` |
 | CLI transport (Electron) | `semantic_linking/cli.py` |
 | HTTP server (browser dev) | `semantic_linking/server.py` |
-| Renderer client | `src/services/semanticLinkingService.js` |
+| Renderer client | `src/features/semantic/semanticLinkingService.js` |
 | Tests | `tests/test_semantic_linking.py` |
 
 Built on **scikit-learn** (`TfidfVectorizer`, `cosine_similarity`) and **NLTK**

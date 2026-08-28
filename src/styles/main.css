@@ -6,16 +6,17 @@
  * alphabetically.
  */
 
+@import './tokens.css';
 @import './base.css';
-@import './shell.css';
-@import './sidebar.css';
-@import './tabs.css';
-@import './dashboard.css';
-@import './folders.css';
-@import './editor.css';
-@import './noteview.css';
-@import './assistant.css';
-@import './semantic.css';
-@import './pdfs.css';
-@import './flashcards.css';
-@import './settings.css';
+@import '../app/shell.css';
+@import '../app/sidebar.css';
+@import '../app/tabs.css';
+@import '../features/dashboard/dashboard.css';
+@import '../features/folders/folders.css';
+@import '../features/notes/editor.css';
+@import '../features/notes/noteview.css';
+@import '../features/assistant/assistant.css';
+@import '../features/semantic/semantic.css';
+@import '../features/pdfs/pdfs.css';
+@import '../features/flashcards/flashcards.css';
+@import '../features/settings/settings.css';

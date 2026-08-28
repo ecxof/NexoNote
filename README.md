@@ -183,39 +183,30 @@ NexoNote/
 │   ├── database.cjs             # SQLite schema, CRUD, JSON migration
 │   └── test-database.cjs        # Database smoke tests
 ├── src/
-│   ├── components/              # 23 React components
-│   │   ├── Dashboard.jsx        # Home view
-│   │   ├── RichTextEditor.jsx   # TipTap editor + toolbars
-│   │   ├── NoteEditor.jsx       # Note editing wrapper
-│   │   ├── PDFViewer.jsx        # PDF viewer
-│   │   ├── Sidebar.jsx          # Main nav sidebar
-│   │   ├── SidebarTree.jsx      # Folder/note/PDF tree
+│   ├── app/                     # App shell: root component, router, chrome
+│   │   ├── App.jsx              # Root component + global state
+│   │   ├── MainContent.jsx      # View router + workspace layout
+│   │   ├── Sidebar.jsx          # Main nav sidebar (+ SidebarTree)
 │   │   ├── TabBar.jsx           # Open file tabs
-│   │   ├── FolderView.jsx       # Folder contents
-│   │   ├── FlashcardsView.jsx   # Flashcard library
-│   │   ├── SemanticGraphView.jsx # Force-directed note graph
-│   │   ├── Settings.jsx         # App settings
-│   │   └── ...
-│   ├── services/                # Data access layer (8 files)
-│   │   ├── noteService.js       # Note CRUD
-│   │   ├── folderService.js     # Folder CRUD
-│   │   ├── pdfService.js        # PDF CRUD
-│   │   ├── settingsService.js   # Settings read/write
-│   │   ├── flashcardService.js  # Flashcard CRUD + review
-│   │   ├── semanticLinkingService.js # Related-notes requests
-│   │   ├── chatService.js       # Hugging Face streaming chat
-│   │   └── secretService.js     # Encrypted Hugging Face token access
-│   ├── context/
-│   │   ├── ItemMenuContext.jsx  # Single-open menu context
-│   │   └── ItemMenuProvider.jsx # Provider (split out for Fast Refresh)
-│   ├── extensions/
-│   │   └── SemanticLink.js      # TipTap mark for keyword links
-│   ├── styles/                   # Component styles, one file per feature
-│   │   ├── main.css              # Barrel; @import order is the cascade order
-│   │   └── ...                   # base, shell, sidebar, editor, flashcards, ...
-│   ├── apiClient.js             # HTTP client mirroring the electronAPI shape
-│   ├── App.jsx                  # Root component + global state
-│   ├── index.css                # CSS variables + themes
+│   │   └── *.css                # shell, sidebar, tabs styles
+│   ├── features/                # One directory per feature
+│   │   ├── dashboard/           # Home view
+│   │   ├── folders/             # Folder view + folderService
+│   │   ├── notes/               # Editor, note sidebars + noteService
+│   │   ├── assistant/           # AI chat + chatService, secretService
+│   │   ├── semantic/            # Graph view, TipTap mark + linking service
+│   │   ├── pdfs/                # Viewer, toolbar + pdfService
+│   │   ├── flashcards/          # Library, review, analytics + service
+│   │   └── settings/            # Settings view + settingsService
+│   │                            # each holds its components, service and CSS
+│   ├── shared/
+│   │   ├── api/apiClient.js     # HTTP client mirroring the electronAPI shape
+│   │   ├── components/          # ItemMenu, Modal
+│   │   └── context/             # ItemMenuContext + Provider
+│   ├── styles/
+│   │   ├── main.css             # Barrel; @import order is the cascade order
+│   │   ├── tokens.css           # CSS variables + themes
+│   │   └── base.css             # Shared primitives
 │   └── main.jsx                 # Entry point
 ├── docs/                        # All project documentation
 │   ├── architecture.md
@@ -249,7 +240,7 @@ NexoNote/
 - **Sidebar**: Drag-resizable, default 280px, clamped between 200px and 480px. The width is persisted to settings, and the sidebar can be collapsed
 - **Main Content**: Flex-grow, scrollable
 - **Dashboard Grid**: `repeat(auto-fit, minmax(300px, 1fr))`, so the column count follows the available width rather than fixed breakpoints
-- **Responsive breakpoints**: layout adjustments are defined at `max-width: 1100px`, `max-width: 900px`, and `max-width: 840px`, each at the end of the stylesheet it overrides in `src/styles/`
+- **Responsive breakpoints**: layout adjustments are defined at `max-width: 1100px`, `max-width: 900px`, and `max-width: 840px`, each at the end of the stylesheet it overrides
 
 ---
 

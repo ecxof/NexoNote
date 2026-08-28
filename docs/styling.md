@@ -7,28 +7,27 @@ variables and conventions. This document is the reference for both.
 
 ```
 src/
-├── index.css        # CSS variables, both themes, base elements (button, h1-h3, a, p)
-└── styles/
-    ├── main.css     # Barrel: @imports the rest, in cascade order
-    ├── base.css     # Shared primitives: buttons, modals, cards, scrollbars
-    ├── shell.css    # App container and main content region
-    ├── sidebar.css  # Nav sidebar, search, tree, item menus
-    ├── tabs.css     # Tab bar, workspace layout, empty-tab view
-    ├── dashboard.css
-    ├── folders.css
-    ├── editor.css   # TipTap body and toolbars
-    ├── noteview.css # Note view sidebars
-    ├── assistant.css
-    ├── semantic.css
-    ├── pdfs.css
-    ├── flashcards.css
-    └── settings.css
+├── styles/
+│   ├── main.css      # Barrel: @imports everything below, in cascade order
+│   ├── tokens.css    # CSS variables, both themes, base elements
+│   └── base.css      # Shared primitives: buttons, modals, cards, scrollbars
+├── app/
+│   ├── shell.css
+│   ├── sidebar.css
+│   └── tabs.css
+└── features/
+    ├── dashboard/dashboard.css
+    ├── folders/folders.css
+    ├── notes/editor.css, noteview.css
+    ├── assistant/assistant.css
+    ├── semantic/semantic.css
+    ├── pdfs/pdfs.css
+    ├── flashcards/flashcards.css
+    └── settings/settings.css
 ```
 
-- **index.css** — colors, fonts, base element styles, theme definitions. Loaded by
-  `main.jsx`
-- **styles/** — component styles, one file per feature. `App.jsx` imports only
-  `styles/main.css`
+Each feature's stylesheet sits in its own directory next to the components it
+styles. `App.jsx` imports only `styles/main.css`, which pulls in the rest.
 
 > [!IMPORTANT]
 > The `@import` order in `main.css` is load-bearing. It reproduces the cascade order
@@ -38,7 +37,7 @@ src/
 
 ## Design tokens
 
-All colors are CSS variables. Never write a color literal in a component style —
+All colors are CSS variables, defined in `src/styles/tokens.css`. Never write a color literal in a component style —
 a hardcoded value will look correct in one theme and wrong in the other.
 
 | Variable | Dark | Light | Usage |
@@ -110,7 +109,7 @@ Line height is 1.5 globally.
 
 ### Sidebar
 
-Drag-resizable, not fixed. The constants live in `src/components/Sidebar.jsx`:
+Drag-resizable, not fixed. The constants live in `src/app/Sidebar.jsx`:
 
 | Constant | Value |
 | --- | --- |
@@ -140,7 +139,7 @@ drag. The note view's left and right sidebars are independently resizable too.
 }
 ```
 
-Buttons are styled globally in `index.css` — accent background, 6px radius,
+Buttons are styled globally in `styles/tokens.css` — accent background, 6px radius,
 `0.6rem 1.2rem` padding, a `translateY(-2px)` hover lift, and a visible
 `focus-visible` outline. A component only needs its own button rule when it
 departs from that.
@@ -197,7 +196,7 @@ at the end of the stylesheet whose rules it overrides:
 
 ## Adding styles for a new component
 
-1. Add the rules to the feature's file in `src/styles/`, under a
+1. Add the rules to the feature's own stylesheet, under a
    `/* --- Component Name --- */` section comment
 2. Use variables for every color
 3. Include hover, active, and focus states for anything interactive
