@@ -139,7 +139,7 @@ both server tiers must implement.
 ### Add a new component
 
 1. Create the file in `src/components/`
-2. Add its styles to `src/App.css`
+2. Add its styles to the matching file in `src/styles/` (see [styling.md](./styling.md))
 3. Import it where it is used
 4. Use CSS variables for every color — see [styling.md](./styling.md)
 5. Check it in both dark and light themes

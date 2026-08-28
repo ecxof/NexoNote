@@ -2,7 +2,7 @@
  * Root: notes, folders, current note, view, clipboard, modals.
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import './App.css';
+import '@/styles/main.css';
 import { ItemMenuProvider } from '@/context/ItemMenuProvider';
 import Sidebar from '@/components/Sidebar';
 import MainContent from '@/components/MainContent';

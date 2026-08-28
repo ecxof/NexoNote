@@ -7,12 +7,34 @@ variables and conventions. This document is the reference for both.
 
 ```
 src/
-├── index.css   # CSS variables, both themes, base elements (button, h1-h3, a, p)
-└── App.css     # Every component style, ~5,600 lines, sectioned by comment
+├── index.css        # CSS variables, both themes, base elements (button, h1-h3, a, p)
+└── styles/
+    ├── main.css     # Barrel: @imports the rest, in cascade order
+    ├── base.css     # Shared primitives: buttons, modals, cards, scrollbars
+    ├── shell.css    # App container and main content region
+    ├── sidebar.css  # Nav sidebar, search, tree, item menus
+    ├── tabs.css     # Tab bar, workspace layout, empty-tab view
+    ├── dashboard.css
+    ├── folders.css
+    ├── editor.css   # TipTap body and toolbars
+    ├── noteview.css # Note view sidebars
+    ├── assistant.css
+    ├── semantic.css
+    ├── pdfs.css
+    ├── flashcards.css
+    └── settings.css
 ```
 
-- **index.css** — colors, fonts, base element styles, theme definitions
-- **App.css** — component layouts, interactions, responsive rules
+- **index.css** — colors, fonts, base element styles, theme definitions. Loaded by
+  `main.jsx`
+- **styles/** — component styles, one file per feature. `App.jsx` imports only
+  `styles/main.css`
+
+> [!IMPORTANT]
+> The `@import` order in `main.css` is load-bearing. It reproduces the cascade order
+> of the single `App.css` these files were split out of, so a later file wins ties
+> against an earlier one. Put a new file where its rules need to sit, not
+> alphabetically.
 
 ## Design tokens
 
@@ -55,8 +77,8 @@ applies instantly with no reload.
 
 Because both themes redefine the *same* names, a component that uses only
 variables needs no theme-specific CSS at all. Write theme overrides only when the
-variables genuinely cannot express the difference — those live in App.css under
-`[data-theme="light"] …` selectors.
+variables genuinely cannot express the difference — those live alongside the rules
+they override, under `[data-theme="light"] …` selectors.
 
 ## Typography
 
@@ -155,7 +177,8 @@ sidebar is user-resizable — the content area's width is not a function of the
 viewport alone.
 
 Explicit breakpoints are used only where the layout genuinely has to change, and
-they are max-width (desktop-down), not mobile-first. All three live in `App.css`:
+they are max-width (desktop-down), not mobile-first. There are three, each sitting
+at the end of the stylesheet whose rules it overrides:
 
 | Breakpoint | Purpose |
 | --- | --- |
@@ -174,7 +197,8 @@ they are max-width (desktop-down), not mobile-first. All three live in `App.css`
 
 ## Adding styles for a new component
 
-1. Add a `/* --- Component Name --- */` section comment in `App.css`
+1. Add the rules to the feature's file in `src/styles/`, under a
+   `/* --- Component Name --- */` section comment
 2. Use variables for every color
 3. Include hover, active, and focus states for anything interactive
 4. Check it in both themes before committing

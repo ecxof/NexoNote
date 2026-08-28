@@ -210,9 +210,11 @@ NexoNote/
 │   │   └── ItemMenuProvider.jsx # Provider (split out for Fast Refresh)
 │   ├── extensions/
 │   │   └── SemanticLink.js      # TipTap mark for keyword links
+│   ├── styles/                   # Component styles, one file per feature
+│   │   ├── main.css              # Barrel; @import order is the cascade order
+│   │   └── ...                   # base, shell, sidebar, editor, flashcards, ...
 │   ├── apiClient.js             # HTTP client mirroring the electronAPI shape
 │   ├── App.jsx                  # Root component + global state
-│   ├── App.css                  # Component styles
 │   ├── index.css                # CSS variables + themes
 │   └── main.jsx                 # Entry point
 ├── docs/                        # All project documentation
@@ -247,7 +249,7 @@ NexoNote/
 - **Sidebar**: Drag-resizable, default 280px, clamped between 200px and 480px. The width is persisted to settings, and the sidebar can be collapsed
 - **Main Content**: Flex-grow, scrollable
 - **Dashboard Grid**: `repeat(auto-fit, minmax(300px, 1fr))`, so the column count follows the available width rather than fixed breakpoints
-- **Responsive breakpoints**: layout adjustments are defined at `max-width: 1100px`, `max-width: 900px`, and `max-width: 840px` in `App.css`
+- **Responsive breakpoints**: layout adjustments are defined at `max-width: 1100px`, `max-width: 900px`, and `max-width: 840px`, each at the end of the stylesheet it overrides in `src/styles/`
 
 ---
 

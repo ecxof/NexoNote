@@ -162,7 +162,9 @@ posts to the Flask server on `:5000`. See [semantic-linking.md](./semantic-linki
 - `better-sqlite3` is synchronous — no async overhead, and fine for a single window
 - WAL journal mode for concurrent reads
 - The service layer caches nothing; every call reads through to storage
-- `App.css` is a single ~5,600-line stylesheet, loaded once from `App.jsx`
+- Styles are 13 files under `src/styles/`, pulled in through one barrel import in
+  `App.jsx`; Vite inlines the `@import`s at build time, so there is no runtime
+  request waterfall
 - TipTap is the heaviest component; content is stored as HTML
 - PDFs are streamed through the custom `nexopdf://` protocol in Electron rather than
   inlined as base64 data URLs
@@ -173,8 +175,6 @@ posts to the Flask server on `:5000`. See [semantic-linking.md](./semantic-linki
 - **Duplicated data layer** — `electron/database.cjs` (~1,300 lines) and
   `backend/db.py` plus its routers (~1,000 lines) implement the same contract twice,
   with `apiClient.js` mirroring the surface a third time
-- **Monolithic stylesheet** — `App.css` carries ~40% of the frontend by line count,
-  with sections delimited only by comments
 - **Flat component directory** — `src/components/` holds 23 files spanning notes,
   folders, PDFs, flashcards, semantic linking, the AI assistant, and app shell, with
   nothing in the layout indicating which is which

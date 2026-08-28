@@ -1,0 +1,21 @@
+/* Assembled renderer stylesheet.
+ *
+ * Import order is load-bearing: it is the cascade order the single
+ * App.css had before it was split, so later files win ties against
+ * earlier ones. Add a new file in the position its rules need, not
+ * alphabetically.
+ */
+
+@import './base.css';
+@import './shell.css';
+@import './sidebar.css';
+@import './tabs.css';
+@import './dashboard.css';
+@import './folders.css';
+@import './editor.css';
+@import './noteview.css';
+@import './assistant.css';
+@import './semantic.css';
+@import './pdfs.css';
+@import './flashcards.css';
+@import './settings.css';
