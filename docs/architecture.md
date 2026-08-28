@@ -183,9 +183,11 @@ posts to the Flask server on `:5000`. See [semantic-linking.md](./semantic-linki
 - `better-sqlite3` is synchronous — no async overhead, and fine for a single window
 - WAL journal mode for concurrent reads
 - The service layer caches nothing; every call reads through to storage
-- Styles are 14 files co-located with the features they style, pulled in through one
-  barrel import (`src/styles/main.css`) in `App.jsx`; Vite inlines the `@import`s at
-  build time, so there is no runtime request waterfall
+- Styles are 14 stylesheets assembled by one barrel, `src/styles/main.css`, which is
+  the only CSS `App.jsx` imports. Twelve sit beside the code they style (three in
+  `app/`, nine across `features/`); the other two are global — `tokens.css` for the
+  variables and `base.css` for shared primitives. Vite inlines the `@import`s at build
+  time, so there is no runtime request waterfall
 - TipTap is the heaviest component; content is stored as HTML
 - PDFs are streamed through the custom `nexopdf://` protocol in Electron rather than
   inlined as base64 data URLs
@@ -195,6 +197,7 @@ posts to the Flask server on `:5000`. See [semantic-linking.md](./semantic-linki
 
 - **Duplicated data layer** — `electron/database.cjs` (~1,300 lines) and
   `server/api/db.py` plus its routers (~1,000 lines) implement the same contract twice,
-  with `apiClient.js` mirroring the surface a third time
-- **Unused legacy components** — `FolderList.jsx` and `NoteList.jsx` are superseded by
-  `SidebarTree.jsx`
+  with `src/shared/api/apiClient.js` mirroring the surface a third time
+- **Unused legacy components** — `src/features/folders/FolderList.jsx` and
+  `src/features/notes/NoteList.jsx` are exported but imported nowhere; both are
+  superseded by `src/app/SidebarTree.jsx`
