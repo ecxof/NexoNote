@@ -74,6 +74,18 @@
     "asarUnpack": [
       "**/*.node"
     ],
+    "extraResources": [
+      {
+        "from": "server",
+        "to": "server",
+        "filter": [
+          "**/*.py",
+          "**/requirements.txt",
+          "!**/__pycache__/**",
+          "!tests/**"
+        ]
+      }
+    ],
     "win": {
       "target": "nsis"
     },

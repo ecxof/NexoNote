@@ -15,6 +15,42 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 
 const PROJECT_ROOT = path.join(__dirname, '..');
+
+// Directory the Python code is run from, which is not always PROJECT_ROOT.
+//
+// Unpackaged, __dirname is <repo>/electron and PROJECT_ROOT is the repo, which
+// holds server/. In a packaged app __dirname is inside app.asar, so PROJECT_ROOT
+// resolves to the archive itself - a file. Passing that as a spawn cwd fails
+// with ENOENT, which the probe below would otherwise report as "python not
+// found", blaming the user's installation for a packaging problem.
+//
+// electron-builder copies server/ into resources/ (see build.extraResources),
+// so pick whichever candidate actually contains it and treat "neither" as its
+// own condition rather than guessing.
+function resolvePythonRoot() {
+  const candidates = [PROJECT_ROOT];
+  if (process.resourcesPath) candidates.push(process.resourcesPath);
+  for (const dir of candidates) {
+    try {
+      if (fs.statSync(path.join(dir, 'server')).isDirectory()) return dir;
+    } catch {
+      // Not this one.
+    }
+  }
+  return null;
+}
+
+const PYTHON_ROOT = resolvePythonRoot();
+
+/** False when this build has no Python sources to run, e.g. a package built without them. */
+function pythonSourcesAvailable() {
+  return PYTHON_ROOT !== null;
+}
+
+/** Working directory for every Python spawn. */
+function pythonCwd() {
+  return PYTHON_ROOT || PROJECT_ROOT;
+}
 const PYTHON_PROBE_TIMEOUT_MS = 10000;
 // Failed lookups are cached only briefly, so installing the dependencies and
 // retrying works without restarting the app.
@@ -29,8 +65,8 @@ const pythonProbesInFlight = new Map();
 /** Path to the interpreter inside the project-local virtualenv, whether or not it exists. */
 function venvPython() {
   return process.platform === 'win32'
-    ? path.join(PROJECT_ROOT, '.venv', 'Scripts', 'python.exe')
-    : path.join(PROJECT_ROOT, '.venv', 'bin', 'python');
+    ? path.join(pythonCwd(), '.venv', 'Scripts', 'python.exe')
+    : path.join(pythonCwd(), '.venv', 'bin', 'python');
 }
 
 /**
@@ -72,7 +108,7 @@ function probePython(candidate, modules) {
     let proc;
     try {
       proc = spawn(candidate.cmd, [...candidate.args, '-c', script], {
-        cwd: PROJECT_ROOT,
+        cwd: pythonCwd(),
         stdio: ['ignore', 'ignore', 'pipe'],
       });
     } catch (err) {
@@ -161,6 +197,12 @@ function explainSemanticError(message) {
 }
 
 function pythonSetupHint(what, tried) {
+  // Distinguish a packaging problem from a missing interpreter: telling someone
+  // to install Python when the app shipped without the sources wastes their time.
+  if (!pythonSourcesAvailable()) {
+    return `This build does not include the Python sources needed for ${what},`
+      + ` so it cannot run here. Use a development checkout to enable it.`;
+  }
   const attempts = tried.length ? ` Tried: ${tried.join('; ')}.` : '';
   return `No Python installation with the ${what} dependencies was found.${attempts}`
     + ` Run "npm run setup:python" to set one up automatically.`;
@@ -168,6 +210,9 @@ function pythonSetupHint(what, tried) {
 
 module.exports = {
   PROJECT_ROOT,
+  PYTHON_ROOT,
+  pythonCwd,
+  pythonSourcesAvailable,
   SEMANTIC_MODULES,
   SEMANTIC_SERVER_MODULES,
   BACKEND_MODULES,

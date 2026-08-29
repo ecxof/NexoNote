@@ -13,7 +13,8 @@ const http = require('http');
 const { pathToFileURL } = require('url');
 const database = require('./database.cjs');
 const {
-  PROJECT_ROOT,
+  pythonCwd,
+  pythonSourcesAvailable,
   SEMANTIC_MODULES,
   BACKEND_MODULES,
   resolvePython,
@@ -259,6 +260,10 @@ function waitForHealth(baseUrl, timeoutMs = 10000) {
 }
 
 async function startPythonBackend() {
+  if (!pythonSourcesAvailable()) {
+    console.warn(pythonSetupHint('the FastAPI backend', []));
+    return null;
+  }
   const { interpreter, tried } = await resolvePython(
     'backend',
     BACKEND_MODULES,
@@ -279,7 +284,7 @@ async function startPythonBackend() {
     const child = spawn(
       interpreter.cmd,
       [...interpreter.args, '-m', 'uvicorn', 'server.api.main:app', '--host', '127.0.0.1', '--port', port],
-      { cwd: PROJECT_ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] }
+      { cwd: pythonCwd(), env, stdio: ['ignore', 'pipe', 'pipe'] }
     );
     pythonProcess = child;
     child.on('error', () => {
@@ -374,6 +379,9 @@ app.whenReady().then(async () => {
       top_keywords: payload.top_keywords ?? 8,
     });
 
+    if (!pythonSourcesAvailable()) {
+      return { error: pythonSetupHint('semantic linking', []) };
+    }
     const { interpreter, tried } = await resolvePython(
       'semantic',
       SEMANTIC_MODULES,
@@ -389,7 +397,7 @@ app.whenReady().then(async () => {
       const proc = spawn(
         interpreter.cmd,
         [...interpreter.args, '-m', 'server.semantic.cli'],
-        { cwd: PROJECT_ROOT, stdio: ['pipe', 'pipe', 'pipe'] }
+        { cwd: pythonCwd(), stdio: ['pipe', 'pipe', 'pipe'] }
       );
       let stdout = '';
       let stderr = '';
@@ -402,13 +410,21 @@ app.whenReady().then(async () => {
         resolve({ error: err.message || 'Failed to run Python' });
       });
       proc.on('close', (code) => {
+        // An empty stdout means the CLI never got as far as printing a result,
+        // so the run failed. Parsing "{}" here instead would surface it as an
+        // empty link list, which reads as "no related notes" and hides the
+        // actual cause - a missing module, a bad interpreter, an import error.
+        if (!stdout.trim()) {
+          const raw = stderr.trim() || `Python exited with code ${code} and no output`;
+          resolve({ error: explainSemanticError(raw) });
+          return;
+        }
         try {
-          const data = JSON.parse(stdout || '{}');
+          const data = JSON.parse(stdout);
           if (data.error) resolve({ error: explainSemanticError(data.error) });
           else resolve({ links: data.links ?? [] });
         } catch {
-          const raw = stderr || stdout || (code !== 0 ? `Exit ${code}` : 'Invalid response');
-          resolve({ error: explainSemanticError(raw) });
+          resolve({ error: explainSemanticError(stderr.trim() || stdout.trim()) });
         }
       });
       proc.stdin.write(input, () => proc.stdin.end());
