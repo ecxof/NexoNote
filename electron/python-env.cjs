@@ -31,6 +31,13 @@ function resolvePythonRoot() {
   const candidates = [PROJECT_ROOT];
   if (process.resourcesPath) candidates.push(process.resourcesPath);
   for (const dir of candidates) {
+    // Electron patches fs so an .asar archive reports isDirectory() === true,
+    // but spawn hands cwd to the OS, which cannot enter one and fails with
+    // ENOENT. Checking with fs and acting with spawn therefore disagree, so
+    // reject archive paths before the check rather than trusting it. Without
+    // this, moving server/ into build.files would silently reintroduce the
+    // "python not found" misreport this function exists to prevent.
+    if (dir.includes('.asar')) continue;
     try {
       if (fs.statSync(path.join(dir, 'server')).isDirectory()) return dir;
     } catch {
