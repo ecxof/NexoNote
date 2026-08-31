@@ -9,6 +9,7 @@
     "dev:vite": "vite",
     "setup:python": "node scripts/setup-python.cjs",
     "test:python": "node scripts/run-python-tests.cjs",
+    "test:semantic": "node scripts/test-semantic-js.mjs",
     "server:python": "node scripts/start-backend.cjs",
     "server:semantic": "node scripts/start-semantic-server.cjs",
     "electron:dev": "concurrently \"vite\" \"wait-on http://127.0.0.1:5173 && npx electron .\"",

@@ -1,13 +1,17 @@
 /**
  * Semantic linking service: find conceptually related notes with matched keywords.
- * In Electron: IPC to main process (spawns Python CLI).
- * In browser (localhost): POST to local Python server (run server/semantic/server.py).
+ *
+ * Scoring runs in the app itself (see tfidfPipeline.js). It previously ran in
+ * Python - spawned as a CLI under Electron, or reached over HTTP in the browser
+ * - which meant related notes only worked where the user had Python plus
+ * scikit-learn, NLTK and its corpora installed, and did not work at all in a
+ * packaged build. TF-IDF over a few hundred notes needs none of that.
  *
  * Response shape per link:
  *   { linked_note_id: string, similarity_score: number, matched_keywords: string[] }
  */
 
-const SEMANTIC_SERVER_URL = 'http://127.0.0.1:5000';
+import { findSemanticLinks as computeLinks } from './tfidfPipeline.js';
 
 /**
  * Fewest notes in the app before any link can be scored.
@@ -15,66 +19,38 @@ const SEMANTIC_SERVER_URL = 'http://127.0.0.1:5000';
  * The pipeline prunes terms whose document frequency exceeds max_df=0.85. With
  * a target note and a single candidate there are only two documents, so every
  * term they share sits at 1.0 and is pruned, and the score is exactly 0 however
- * alike the notes are — identical notes included. Below this count the request
- * is skipped rather than sent, because the answer is already known.
+ * alike the notes are — identical notes included. Below this count the work is
+ * skipped, because the answer is already known.
  *
  * See the Limitations section of docs/semantic-linking.md.
  */
 export const MIN_NOTES_FOR_LINKS = 3;
 
-function hasElectron() {
-  return typeof window !== 'undefined' && window.electronAPI?.semanticLinks;
-}
-
 /**
  * Find notes that are conceptually related to the given content.
+ *
+ * Kept async, and kept returning { links, error }, so callers are unchanged
+ * from when this crossed a process boundary.
+ *
  * @param {string} targetContent - HTML or plain text of the current note
  * @param {{ id: string, content: string }[]} existingNotes - Other notes (id + content only)
  * @param {{ threshold?: number, maxResults?: number, topKeywords?: number }} options
  * @returns {Promise<{ links: Array<{ linked_note_id: string, similarity_score: number, matched_keywords: string[] }>, error?: string }>}
  */
 export async function findSemanticLinks(targetContent, existingNotes, options = {}) {
-  const threshold = options.threshold ?? 0.25;
-  const maxResults = options.maxResults ?? 50;
-  const topKeywords = options.topKeywords ?? 8;
-
-  const payload = {
-    target_content: targetContent,
-    notes: existingNotes,
-    threshold,
-    max_results: maxResults,
-    top_keywords: topKeywords,
-  };
-
-  if (hasElectron()) {
-    try {
-      const result = await window.electronAPI.semanticLinks.find(payload);
-      return result?.error ? { links: [], error: result.error } : { links: result?.links ?? [] };
-    } catch (e) {
-      return { links: [], error: e?.message || 'Semantic linking failed' };
-    }
-  }
-
   try {
-    const res = await fetch(`${SEMANTIC_SERVER_URL}/find-links`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+    const candidates = {};
+    for (const note of existingNotes || []) {
+      if (note?.id) candidates[note.id] = note.content ?? '';
+    }
+
+    const links = computeLinks(targetContent, candidates, {
+      threshold: options.threshold ?? 0.25,
+      maxResults: options.maxResults ?? 50,
+      topKeywords: options.topKeywords ?? 8,
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return { links: [], error: data?.error || `Server error ${res.status}` };
-    }
-    if (data.error) {
-      return { links: [], error: data.error };
-    }
-    return { links: data.links ?? [] };
+    return { links };
   } catch (e) {
-    return {
-      links: [],
-      error: e?.message?.includes('fetch')
-        ? 'Semantic linking server not running. Start it with: python -m server.semantic.server'
-        : (e?.message || 'Request failed'),
-    };
+    return { links: [], error: e?.message || 'Semantic linking failed' };
   }
 }
