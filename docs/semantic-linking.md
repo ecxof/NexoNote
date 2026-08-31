@@ -1,27 +1,24 @@
 # Semantic Linking
 
 Semantic linking suggests **conceptually related notes** based on the content of the
-note you are reading. It is implemented in Python and uses standard NLP and IR
-techniques, so links are driven by domain concepts (e.g. "backpropagation",
-"deadlock") rather than by common or structural words (e.g. "the", "study", "page",
-"conclusion").
+note you are reading. It uses standard IR techniques, so links are driven by domain
+concepts (e.g. "backpropagation", "deadlock") rather than by common or structural
+words (e.g. "the", "study", "page", "conclusion").
 
-It surfaces in the app in three places: the **Related notes** panel in the note view's
-left sidebar, **keyword highlights** inside the editor body, and the force-directed
+It surfaces in three places: the **Related notes** panel in the note view's left
+sidebar, **keyword highlights** inside the editor body, and the force-directed
 **semantic graph** view.
+
+It runs in the app itself. There is nothing to install and nothing to start.
 
 ## Where it lives
 
 | Piece | Location |
 | --- | --- |
-| Pipeline | `server/semantic/pipeline.py` |
-| CLI transport (Electron) | `server/semantic/cli.py` |
-| HTTP server (browser dev) | `server/semantic/server.py` |
-| Renderer client | `src/features/semantic/semanticLinkingService.js` |
-| Tests | `server/tests/test_semantic_linking.py` |
-
-Built on **scikit-learn** (`TfidfVectorizer`, `cosine_similarity`) and **NLTK**
-(tokenization, stop words, WordNet lemmatization).
+| Pipeline | `src/features/semantic/tfidfPipeline.js` |
+| Stop words | `src/features/semantic/stopWords.js` |
+| Caller-facing service | `src/features/semantic/semanticLinkingService.js` |
+| Tests | `scripts/test-semantic-js.mjs` (`npm run test:semantic`) |
 
 ## Data source
 
@@ -29,90 +26,64 @@ Built on **scikit-learn** (`TfidfVectorizer`, `cosine_similarity`) and **NLTK**
 
 ## Pipeline (overview)
 
-1. **Text extraction & cleaning** – Strip HTML tags, tokenize, lowercase.
-2. **Preprocessing** – Remove standard English stop words and a custom _domain stop word_ list (e.g. "note", "summary", "exam", "page", "conclusion") so links are based on domain concepts. Lemmatization reduces words to base form.
-3. **Vectorization** – `TfidfVectorizer` with `max_df=0.85` and `min_df=1` so terms that appear in too many notes are downweighted or ignored.
-4. **Similarity** – Cosine similarity between the target note and all candidate notes.
-5. **Output** – `find_semantic_links(target_note_text, existing_notes_dict, threshold=0.25)` returns a list of `{"note_id", "score"}` for notes above the threshold.
+1. **Text extraction** - strip HTML tags and entities, collapse whitespace.
+2. **Preprocessing** - lowercase, tokenize (keeping internal hyphens so
+   "back-propagation" stays one term), drop stop words, and stem with Porter.
+   Stop words are NLTK's 198 English words plus 92 domain words common to study
+   notes, so links reflect concepts rather than note scaffolding.
+3. **Vectorization** - TF-IDF exactly as scikit-learn computes it: sublinear tf
+   (`1 + ln(count)`), smooth idf (`ln((1 + n) / (1 + df)) + 1`), L2 normalization,
+   and `max_df = 0.85` term pruning.
+4. **Similarity** - cosine similarity, a dot product of unit vectors.
+5. **Output** - `findSemanticLinks(targetContent, candidates, options)` returns
+   `{ linked_note_id, similarity_score, matched_keywords }`, sorted by score.
 
-## Setup
-
-```bash
-npm run setup:python
-```
-
-From the project root. This creates a `.venv`, installs the Python dependencies into it, downloads the NLTK corpora (`punkt`, `punkt_tab`, `stopwords`, `wordnet`), and smoke-tests the pipeline. Rerunning is safe; `-- --force` rebuilds the virtualenv.
-
-`punkt_tab` matters: `word_tokenize` requires it on NLTK 3.9+, where `punkt` alone is no longer enough.
-
-To install by hand instead, use any Python and point the app at it with `NEXONOTE_SEMANTIC_PYTHON`:
-
-```bash
-pip install -r server/semantic/requirements.txt
-python -m nltk.downloader punkt punkt_tab stopwords wordnet
-```
+Matched keywords are the terms both notes weigh heavily, by geometric mean, mapped
+back to the words that actually appear in the note so highlights show what the user
+wrote rather than a stem.
 
 ## Usage
 
-```python
-from server.semantic import find_semantic_links
+```js
+import { findSemanticLinks } from '@/features/semantic/tfidfPipeline';
 
-# target_note_text: HTML or plain text of the note you're viewing
-# existing_notes_dict: { note_id: content } for all other notes (e.g. from DB)
-existing = {
-    "uuid-1": "<p>Backpropagation computes gradients...</p>",
-    "uuid-2": "<p>Deadlock occurs when two processes...</p>",
-}
-target = "<p>Gradient descent and backpropagation are used in neural networks.</p>"
-
-links = find_semantic_links(target, existing, threshold=0.25)
-# e.g. [{"note_id": "uuid-1", "score": 0.42}, ...]
+const links = findSemanticLinks(
+  '<p>Gradient descent and backpropagation train neural networks.</p>',
+  {
+    'uuid-1': '<p>Backpropagation computes gradients for each layer.</p>',
+    'uuid-2': '<p>Deadlock occurs when two processes wait.</p>',
+  },
+  { threshold: 0.25, maxResults: 20, topKeywords: 8 },
+);
+// [{ linked_note_id: 'uuid-1', similarity_score: 0.5363,
+//    matched_keywords: ['neural', 'backpropagation', 'gradient', 'networks'] }]
 ```
-
-## Running in the live app
-
-### Browser
-
-`npm run dev` starts Vite and the semantic linking server together, so no second terminal is needed:
-
-```bash
-npm run dev
-```
-
-The server runs at **http://127.0.0.1:5000**. Open a note and the left sidebar shows **Related notes** with clickable links to similar notes.
-
-If Python is not set up, the server is skipped with a note explaining why and Vite still starts — the rest of the app works without it. Use `npm run dev:vite` to start Vite alone.
-
-To run the server by itself:
-
-```bash
-python -m server.semantic.server
-```
-
-### Electron
-
-No server needed. The main process spawns the Python CLI (`server/semantic/cli.py`) when the sidebar requests related notes.
-
-Electron picks the interpreter by probing candidates in order and keeping the first one that can `import sklearn, nltk`:
-
-1. `$NEXONOTE_SEMANTIC_PYTHON`, if set (full path to a Python executable)
-2. `.venv/Scripts/python.exe` (Windows) or `.venv/bin/python`, if a project-local virtualenv exists
-3. `py -3` on Windows, `python3` elsewhere
-4. `python`
-
-If no candidate has the dependencies, the sidebar shows which interpreters were tried and why each was rejected, along with the command to fix it. Running `npm run setup:python` and reopening the sidebar is enough — no app restart needed.
 
 ## Tests
 
 ```bash
-npm run test:python
+npm run test:semantic
 ```
 
-Runs `server/tests/test_semantic_linking.py` with the same interpreter the app uses. The suite covers the contract the callers depend on plus three properties worth keeping:
+21 tests covering the two-note limitation below, boilerplate rejection, score
+continuity as the corpus grows, and the contract the callers depend on.
 
-- **The two-note limitation stays pinned** — `SmallCorpusLimitation` asserts that a single candidate note yields no link, so the behaviour below is a known property rather than a regression someone rediscovers.
-- **Boilerplate is rejected** — unrelated notes sharing a header block produce no links, and template words never appear in `matched_keywords`. These are what `max_df` buys; they fail if it is relaxed.
-- **Scores stay continuous as the corpus grows** — the same pair of notes never jumps by more than 0.05 between consecutive corpus sizes, never decreases as unrelated notes are added, and the related note keeps its rank.
+## History
+
+This ran in Python until it was ported. The pipeline used scikit-learn and NLTK,
+spawned as a CLI under Electron or reached over HTTP in browser dev. That made a
+working feature conditional on the user having Python plus roughly 290 MB of
+scientific packages and NLTK corpora, and it did not work in a packaged build at
+all - the installer shipped no Python.
+
+The port reproduces the scoring maths exactly and reuses the same stop word lists.
+Two steps could not be reproduced without their data files: NLTK's `word_tokenize`
+needs the 47 MB punkt models, and WordNet lemmatization needs an 11 MB corpus, so
+the port uses a regex tokenizer and a Porter stemmer. Measured over six corpora and
+18 note pairs, 13 pairs scored identically; the largest divergence was 0.2434 on
+irregular plurals (WordNet maps "hypotheses" to "hypothesis", Porter does not), and
+the single ranking difference sat at 0.1358, below both the 0.25 sidebar and 0.20
+graph thresholds, so neither implementation would display it.
 
 ## Limitations
 
@@ -137,7 +108,3 @@ Related: NexoNote has no note templates, and the title and tags are stored in se
 ### The same pair of notes changes score as the corpus grows
 
 Visible in the table above: the related pair moves from 0.333 to 0.367 as unrelated notes are added. IDF is computed over the whole corpus, so a term's weight depends on how many notes exist. The percentage shown in the sidebar drifts upward over time for an unchanged pair of notes. The drift is bounded and monotonic — `ScoreConsistencyAsCorpusGrows` pins both — but it is not a bug report.
-
-## Alternative implementations
-
-The same pipeline can be implemented with **spaCy** (e.g. `en_core_web_sm`) for lemmatization and stop words; the current implementation uses NLTK to avoid a separate model download step.

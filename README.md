@@ -46,7 +46,7 @@ NexoNote is a desktop note-taking and study companion built with Electron and Re
 
 **Optional**
 
-- **Python 3.9+** - Required for semantic linking and for the FastAPI backend. Without Python, the app still runs; semantic linking is simply unavailable and Electron falls back to its built-in Node/SQLite backend
+- **Python 3.9+** - Optional, required only for the FastAPI backend. Without Python the app still runs and Electron falls back to its built-in Node/SQLite backend. Semantic linking needs nothing extra
 
 ### Installation
 
@@ -59,7 +59,6 @@ cd NexoNote
 npm install
 
 # Start development server (browser; notes stored in localStorage)
-# Also starts the semantic linking server when Python is set up
 npm run dev
 
 # Or run as Electron desktop app (notes stored in SQLite)
@@ -71,15 +70,15 @@ npm run electron:dev
 
 ### Optional Python setup
 
-Semantic linking and the FastAPI backend need Python. One command sets both up:
+Only the FastAPI backend needs Python. One command sets it up:
 
 ```bash
 npm run setup:python
 ```
 
-It creates a project-local `.venv`, installs both requirement files into it, downloads the NLTK corpora, and finishes by running the semantic linking pipeline once to prove it works. It is safe to rerun; pass `-- --force` to rebuild the virtualenv from scratch, or `-- --no-backend` to skip the FastAPI dependencies.
+It creates a project-local `.venv` and installs the backend dependencies into it. It is safe to rerun; pass `-- --force` to rebuild the virtualenv from scratch.
 
-Once it is set up, `npm run test:python` runs the semantic linking test suite.
+`npm run test:semantic` runs the semantic linking test suite; it needs no Python.
 
 Both `npm run dev` and Electron pick up that `.venv` automatically, so there is nothing to activate. To use a Python you manage yourself, set `NEXONOTE_SEMANTIC_PYTHON` (or `NEXONOTE_BACKEND_PYTHON`) to its full path and skip the setup command.
 
@@ -148,7 +147,7 @@ Tiers 1 and 2 are two implementations of the same contract and share the same SQ
 | Rich Text Editor | TipTap 3.x (ProseMirror) | Note content editing |
 | Database | better-sqlite3 13.x | Local storage (Electron mode) |
 | Backend (optional) | FastAPI + Uvicorn | HTTP implementation of the same data API |
-| Semantic Linking | scikit-learn + NLTK | TF-IDF and cosine similarity |
+| Semantic Linking | in-app JavaScript | TF-IDF and cosine similarity |
 | Graph Rendering | react-force-graph-2d | Force-directed semantic graph |
 | Packaging | electron-builder | Installer builds |
 | Icons | Lucide React | UI iconography |

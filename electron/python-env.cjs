@@ -62,8 +62,6 @@ const PYTHON_PROBE_TIMEOUT_MS = 10000;
 // Failed lookups are cached only briefly, so installing the dependencies and
 // retrying works without restarting the app.
 const PYTHON_FAILURE_TTL_MS = 30000;
-const SEMANTIC_MODULES = ['sklearn', 'nltk'];
-const SEMANTIC_SERVER_MODULES = ['sklearn', 'nltk', 'flask'];
 const BACKEND_MODULES = ['uvicorn', 'fastapi'];
 
 const pythonResolutionCache = new Map();
@@ -192,17 +190,6 @@ function forgetPython(key) {
   pythonResolutionCache.delete(key);
 }
 
-// The pipeline downloads its NLTK corpora on demand, which fails silently when
-// the machine is offline and only surfaces as a LookupError further down.
-function explainSemanticError(message) {
-  const text = String(message || '').trim();
-  if (/Resource\s+\S+\s+not found|LookupError|nltk\.download/i.test(text)) {
-    return `${text}\n\nThe NLTK data files are missing.`
-      + ` Run "npm run setup:python" to install them.`;
-  }
-  return text || 'Semantic linking failed';
-}
-
 function pythonSetupHint(what, tried) {
   // Distinguish a packaging problem from a missing interpreter: telling someone
   // to install Python when the app shipped without the sources wastes their time.
@@ -220,8 +207,6 @@ module.exports = {
   PYTHON_ROOT,
   pythonCwd,
   pythonSourcesAvailable,
-  SEMANTIC_MODULES,
-  SEMANTIC_SERVER_MODULES,
   BACKEND_MODULES,
   venvPython,
   pythonCandidates,
@@ -230,6 +215,5 @@ module.exports = {
   resolvePython,
   resolveBasePython,
   forgetPython,
-  explainSemanticError,
   pythonSetupHint,
 };

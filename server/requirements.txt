@@ -1,7 +1,6 @@
 # Every Python dependency NexoNote uses.
 #   pip install -r server/requirements.txt
 #
-# Split so the FastAPI backend can be skipped: semantic linking works on its own,
-# which is what `npm run setup:python -- --no-backend` installs.
--r semantic/requirements.txt
+# Only the FastAPI backend needs Python now. Semantic linking runs in the
+# app itself; see src/features/semantic/tfidfPipeline.js.
 -r api/requirements.txt

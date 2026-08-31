@@ -23,7 +23,7 @@ Without it, `npm install` fails at the `postinstall` rebuild step. Browser mode 
 
 **Optional**
 
-- **Python 3.9+** — needed for semantic linking and the FastAPI backend. Without Python the app still runs; semantic linking is unavailable and Electron falls back to its built-in Node/SQLite backend.
+- **Python 3.9+** — optional, needed only for the FastAPI backend. Without Python the app still runs and Electron falls back to its built-in Node/SQLite backend. Semantic linking needs nothing extra; it runs in the app.
 
 ## Running the app
 
@@ -35,8 +35,7 @@ Then pick a mode:
 
 | Command | What runs | Where notes are stored |
 | --- | --- | --- |
-| `npm run dev` | Vite + the semantic linking server | `localStorage` |
-| `npm run dev:vite` | Vite alone | `localStorage` |
+| `npm run dev` | Vite | `localStorage` |
 | `npm run electron:dev` | Vite + the Electron shell | SQLite (`nexonote.db`) |
 
 Browser mode serves at `http://127.0.0.1:5173`, or the next free port — `strictPort` is off, so Vite moves to 5174+ when 5173 is taken.
@@ -45,25 +44,22 @@ Electron runs the same React app in a window. Its database lives under the app's
 
 ## Python setup
 
-One command sets up both the semantic linking engine and the FastAPI backend:
+One command sets up the FastAPI backend:
 
 ```bash
 npm run setup:python
 ```
 
-It creates a project-local `.venv`, installs the Python dependencies into it, downloads
-the NLTK corpora, and runs the semantic linking pipeline once to prove it works.
-Rerunning is safe.
+It creates a project-local `.venv`, installs the backend dependencies into it, and
+verifies the result. Rerunning is safe.
 
 All Python lives under `server/`, as one importable package:
 
 ```
 server/
 ├── api/               FastAPI backend  ->  python -m uvicorn server.api.main:app
-├── semantic/          Linking engine   ->  python -m server.semantic.server
-│                                          or  python -m server.semantic.cli
 ├── tests/             python -m unittest discover -s server/tests -t .
-└── requirements.txt   pulls in api/ and semantic/ requirements
+└── requirements.txt   pulls in api/ requirements
 ```
 
 Every entry point is a module path resolved from the project root, so run the commands
@@ -88,14 +84,12 @@ If none qualify, the error names every interpreter tried and why each was reject
 ## All scripts
 
 ```bash
-npm run dev              # Vite + semantic linking server (browser, localStorage)
-npm run dev:vite         # Vite alone
+npm run dev              # Vite (browser, localStorage)
 npm run electron:dev     # Electron desktop app (SQLite)
 
-npm run setup:python     # Create .venv, install Python deps, download NLTK corpora
-npm run test:python      # Run the semantic linking test suite
+npm run setup:python     # Create .venv and install the FastAPI backend deps
+npm run test:semantic    # Run the semantic linking test suite
 npm run server:python    # Start the FastAPI backend on its own
-npm run server:semantic  # Start the semantic linking server on its own
 
 npm run build            # Production build of the renderer into dist/
 npm run preview          # Serve the production build
@@ -179,7 +173,7 @@ node electron/test-database.cjs
 ### Run the Python tests
 
 ```bash
-npm run test:python
+npm run test:semantic
 ```
 
 ## Troubleshooting
@@ -189,7 +183,7 @@ Prerequisites above, or use browser mode, which does not need `better-sqlite3`.
 
 **`better-sqlite3` fails to load in Electron** — run `npm run rebuild`.
 
-**Semantic linking panel shows an interpreter error** — run `npm run setup:python`
+**Semantic linking panel is empty** — see the
 and reopen the sidebar. No app restart is needed.
 
 **Related notes is empty with only two notes** — expected, not a bug. See the

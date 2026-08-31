@@ -1,9 +1,9 @@
 /**
  * Stop words for semantic linking.
  *
- * Generated from the exact lists the Python pipeline used, so the port does not
- * drift here: NLTK's English list (198 words) and the project's domain list
- * (92 words) from server/semantic/pipeline.py.
+ * Generated from the exact lists the former Python pipeline used, so the port
+ * does not drift here: NLTK's English list (198 words) and the project's own
+ * domain list (92 words).
  */
 
 // NLTK stopwords.words('english')

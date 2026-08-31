@@ -15,11 +15,8 @@ const database = require('./database.cjs');
 const {
   pythonCwd,
   pythonSourcesAvailable,
-  SEMANTIC_MODULES,
   BACKEND_MODULES,
   resolvePython,
-  forgetPython,
-  explainSemanticError,
   pythonSetupHint,
 } = require('./python-env.cjs');
 
@@ -368,68 +365,6 @@ app.whenReady().then(async () => {
   registerPdfProtocol();
   registerHuggingFaceProtocol();
   registerSecretHandlers();
-
-  // Semantic linking: Python CLI (independent of data backend)
-  ipcMain.handle('semantic-links:find', async (_, payload) => {
-    const input = JSON.stringify({
-      target_content: payload.target_content ?? '',
-      notes: payload.notes ?? [],
-      threshold: payload.threshold ?? 0.25,
-      max_results: payload.max_results ?? 50,
-      top_keywords: payload.top_keywords ?? 8,
-    });
-
-    if (!pythonSourcesAvailable()) {
-      return { error: pythonSetupHint('semantic linking', []) };
-    }
-    const { interpreter, tried } = await resolvePython(
-      'semantic',
-      SEMANTIC_MODULES,
-      process.env.NEXONOTE_SEMANTIC_PYTHON
-    );
-    if (!interpreter) {
-      return {
-        error: pythonSetupHint('semantic linking', tried),
-      };
-    }
-
-    return new Promise((resolve) => {
-      const proc = spawn(
-        interpreter.cmd,
-        [...interpreter.args, '-m', 'server.semantic.cli'],
-        { cwd: pythonCwd(), stdio: ['pipe', 'pipe', 'pipe'] }
-      );
-      let stdout = '';
-      let stderr = '';
-      proc.stdout.on('data', (chunk) => { stdout += chunk; });
-      proc.stderr.on('data', (chunk) => { stderr += chunk; });
-      proc.on('error', (err) => {
-        // The interpreter passed the probe, so this is a spawn failure, not a
-        // missing Python. Drop the cache entry so the next call re-resolves.
-        forgetPython('semantic');
-        resolve({ error: err.message || 'Failed to run Python' });
-      });
-      proc.on('close', (code) => {
-        // An empty stdout means the CLI never got as far as printing a result,
-        // so the run failed. Parsing "{}" here instead would surface it as an
-        // empty link list, which reads as "no related notes" and hides the
-        // actual cause - a missing module, a bad interpreter, an import error.
-        if (!stdout.trim()) {
-          const raw = stderr.trim() || `Python exited with code ${code} and no output`;
-          resolve({ error: explainSemanticError(raw) });
-          return;
-        }
-        try {
-          const data = JSON.parse(stdout);
-          if (data.error) resolve({ error: explainSemanticError(data.error) });
-          else resolve({ links: data.links ?? [] });
-        } catch {
-          resolve({ error: explainSemanticError(stderr.trim() || stdout.trim()) });
-        }
-      });
-      proc.stdin.write(input, () => proc.stdin.end());
-    });
-  });
 
   createWindow();
   app.on('activate', () => {

@@ -25,9 +25,6 @@ Renderer (React + Vite)                Main process (Electron + Node)
              │ HTTP                       ┌────────────────────────┐
              └──────────────────────────► │  server/api (FastAPI)  │
                                           │  :8765                 │
-                                          ├────────────────────────┤
-                                          │  server/semantic       │
-                                          │  CLI, or Flask :5000   │
                                           └────────────────────────┘
                                                      │
                                               nexonote.db (SQLite)
@@ -174,9 +171,9 @@ order and keeps the first that can import the required packages: an explicit
 `NEXONOTE_*_PYTHON` env var, then the project-local `.venv`, then `py -3` / `python3`,
 then `python`. If none qualify, the error names every candidate and why each failed.
 
-Semantic linking reaches Python two different ways depending on run mode: Electron
-spawns `server/semantic/cli.py` per request over stdin/stdout JSON, while browser dev
-posts to the Flask server on `:5000`. See [semantic-linking.md](./semantic-linking.md).
+Semantic linking runs in the renderer - see
+[semantic-linking.md](./semantic-linking.md). It used to spawn Python; that is gone,
+so it works identically in the browser, in Electron and in a packaged build.
 
 ## Performance notes
 

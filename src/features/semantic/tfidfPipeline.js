@@ -1,8 +1,9 @@
 /**
  * Semantic linking pipeline, in JavaScript.
  *
- * A port of server/semantic/pipeline.py. The scoring maths is reproduced
- * exactly as scikit-learn computes it, so results are comparable:
+ * Ported from the Python pipeline that used to live at server/semantic/, which
+ * needed scikit-learn and NLTK. The scoring maths is reproduced exactly as
+ * scikit-learn computed it:
  *
  *   sublinear tf : tf = 1 + ln(count)
  *   smooth idf   : idf = ln((1 + n) / (1 + df)) + 1
@@ -22,7 +23,8 @@
  *                  the Python version maps lemmas back.
  *
  * Both shift absolute scores slightly. Ordering, thresholds and the boilerplate
- * rejection that max_df provides are unaffected.
+ * rejection that max_df provides are unaffected. The differential check that
+ * measured this is in the history of scripts/compare-semantic-impls.mjs.
  */
 
 import { STOP_WORDS } from './stopWords.js';

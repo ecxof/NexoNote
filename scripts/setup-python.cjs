@@ -2,12 +2,14 @@
 /**
  * One-shot bootstrap for NexoNote's optional Python features.
  *
- * Creates a project-local .venv, installs the semantic linking and FastAPI
- * backend dependencies into it, and downloads the NLTK corpora. Electron and
- * `npm run dev` prefer this virtualenv, so it removes any ambiguity about
+ * Creates a project-local .venv and installs the FastAPI backend dependencies
+ * into it. Electron prefers this virtualenv, so it removes any ambiguity about
  * which interpreter pip installed into.
  *
- * Usage: npm run setup:python [-- --force] [-- --no-backend]
+ * Python is optional now: it powers only the FastAPI storage backend. Semantic
+ * linking runs in the app itself and needs nothing from here.
+ *
+ * Usage: npm run setup:python [-- --force]
  */
 const path = require('path');
 const fs = require('fs');
@@ -21,12 +23,9 @@ const {
   describeInterpreter,
 } = require('../electron/python-env.cjs');
 
-// word_tokenize needs punkt_tab on nltk >= 3.9; punkt alone is not enough.
-const NLTK_RESOURCES = ['punkt', 'punkt_tab', 'stopwords', 'wordnet'];
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
-const withBackend = !args.includes('--no-backend');
 
 const colors = process.stdout.isTTY && !process.env.NO_COLOR;
 const dim = (s) => (colors ? `\x1b[2m${s}\x1b[0m` : s);
@@ -105,55 +104,16 @@ async function main() {
   const upgraded = await run(venv, ['-m', 'pip', 'install', '--upgrade', 'pip', '--quiet']);
   if (upgraded.code !== 0) console.log(dim('    pip self-upgrade skipped'));
 
-  const requirements = ['server/semantic/requirements.txt'];
-  if (withBackend) requirements.push('server/api/requirements.txt');
-  for (const req of requirements) {
-    const installed = await run(venv, ['-m', 'pip', 'install', '-r', req]);
-    if (installed.code !== 0) fail(`pip could not install ${req}.`);
-  }
-
-  heading('Downloading NLTK data');
-  const downloaded = await run(venv, ['-c',
-    `import nltk; [nltk.download(r) for r in ${JSON.stringify(NLTK_RESOURCES)}]`],
-    { label: 'python -m nltk.downloader ' + NLTK_RESOURCES.join(' ') });
-  if (downloaded.code !== 0) {
-    fail(
-      'Could not download the NLTK corpora.',
-      'This step needs network access. Once online, rerun "npm run setup:python".'
-    );
-  }
+  const installed = await run(venv, ['-m', 'pip', 'install', '-r', 'server/api/requirements.txt']);
+  if (installed.code !== 0) fail('pip could not install server/api/requirements.txt.');
 
   heading('Verifying the installation');
-  const check = await probePython({ cmd: venv, args: [] }, ['sklearn', 'nltk', 'flask']);
+  const check = await probePython({ cmd: venv, args: [] }, ['uvicorn', 'fastapi']);
   if (!check.ok) fail(`The virtualenv is missing packages after install (${check.reason}).`);
-
-  // Exercise the real pipeline, which catches missing corpora that a plain
-  // import check would not. Needs three documents: with only two, max_df=0.85
-  // drops every term they share and nothing can score above zero.
-  const smoke = await run(venv, ['-c', [
-    'from server.semantic import find_semantic_links',
-    'links = find_semantic_links("<p>Gradient descent trains neural networks.</p>", {',
-    '  "a": "<p>Backpropagation computes gradients for neural networks.</p>",',
-    '  "b": "<p>Deadlock occurs when two processes wait on each other.</p>",',
-    '}, threshold=0.1)',
-    'assert links, "pipeline returned no links for obviously related notes"',
-    'assert links[0]["linked_note_id"] == "a", "pipeline ranked an unrelated note first"',
-    'print("    related note matched on:", ", ".join(links[0]["matched_keywords"]))',
-  ].join('\n')], { capture: true, label: 'semantic linking smoke test' });
-  if (smoke.code !== 0) {
-    fail('The semantic linking pipeline did not run.', smoke.out.trim());
-  }
-  process.stdout.write(smoke.out);
-
-  if (withBackend) {
-    const backendCheck = await probePython({ cmd: venv, args: [] }, ['uvicorn', 'fastapi']);
-    console.log(backendCheck.ok
-      ? '    FastAPI backend dependencies OK'
-      : dim(`    FastAPI backend dependencies unavailable (${backendCheck.reason})`));
-  }
+  console.log('    FastAPI backend dependencies OK');
 
   console.log(`\n${green('Setup complete.')} Electron and "npm run dev" will use .venv automatically.`);
-  console.log(dim('  npm run dev            browser + semantic linking server'));
+  console.log(dim('  npm run dev            browser'));
   console.log(dim('  npm run electron:dev   desktop app'));
 }
 
